@@ -1,5 +1,4 @@
 import AppKit
-import CoreGraphics
 
 /// Brings an app to the front, launching it first if it is not running.
 ///
@@ -25,49 +24,23 @@ enum Launcher {
             return
         }
 
-        // Apps that keep running with every window closed — Signal and
-        // LM Studio among them — come to the front with nothing on screen,
-        // because activating a process does not ask it to show a window.
-        let showsNothing = !hasOnScreenWindows(running)
-
         // Under cooperative activation the frontmost app has to hand over its
         // claim, otherwise our request is deferred until the user clicks.
         NSApp.yieldActivation(to: running)
         running.activate()
 
-        // Reopening is what clicking a Dock icon does: an app with windows
-        // already open ignores it, one without opens a fresh window.
-        if showsNothing {
-            open(running.bundleURL ?? entry.url)
-        }
+        // Activating a process never asks it to show a window, so apps that
+        // keep running with every window closed — Signal and LM Studio among
+        // them — would come forward with nothing on screen. Reopen, as a Dock
+        // click does. It goes out unconditionally: Bifrost can only see
+        // windows on the current desktop, but AppKit tells the app about its
+        // windows on every desktop, and an app that has some ignores it.
+        open(running.bundleURL ?? entry.url)
 
         if entry.cyclesWindows, WindowCycler.isTrusted {
             // Pin the rotation to the window that is now in front, so the next
             // press steps off it predictably.
             WindowCycler.beginCycle(for: running, bundleIdentifier: entry.bundleIdentifier)
-        }
-    }
-
-    /// Whether the app has any ordinary window on screen right now.
-    ///
-    /// `CGWindowListCopyWindowInfo` reports window geometry to any caller —
-    /// only window *titles* are gated behind Screen Recording — so this keeps
-    /// plain launching and focusing free of permissions.
-    @MainActor
-    private static func hasOnScreenWindows(_ app: NSRunningApplication) -> Bool {
-        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
-        guard let windows = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else {
-            // If the window list is unavailable, assume the app has windows so
-            // that an app which already works is never sent a stray reopen.
-            return true
-        }
-
-        let pid = app.processIdentifier
-        return windows.contains { window in
-            guard window["kCGWindowOwnerPID"] as? pid_t == pid else { return false }
-            // Layer 0 is the normal window level; menu bar items, status
-            // popovers and the like sit above it and do not count.
-            return window["kCGWindowLayer"] as? Int == 0
         }
     }
 

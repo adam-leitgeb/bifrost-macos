@@ -8,7 +8,7 @@ Bifrost is a SwiftUI `MenuBarExtra` app built on system frameworks only.
 | Global hotkeys | Carbon `RegisterEventHotKey` |
 | Recording | A local `NSEvent` monitor, with registered hotkeys paused so an existing shortcut can't fire mid-recording |
 | Key labels | `UCKeyTranslate` against the active layout, so non-QWERTY keyboards show the right glyph |
-| Activation | `NSRunningApplication.activate()`, preceded by `NSApp.yieldActivation(to:)` for cooperative activation. An app running with no windows also gets a reopen through `NSWorkspace.openApplication`, the way clicking a Dock icon does |
+| Activation | `NSRunningApplication.activate()`, preceded by `NSApp.yieldActivation(to:)` for cooperative activation. It is followed by a reopen through `NSWorkspace.openApplication`, the way clicking a Dock icon does, so an app running with no windows opens one. The app decides, since only it knows about its windows on other desktops |
 | Window cycling | Accessibility API — `kAXWindowsAttribute` to enumerate, `kAXRaiseAction` to raise |
 | Storage | JSON at `~/Library/Application Support/Bifrost/entries.json` |
 
