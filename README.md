@@ -61,3 +61,7 @@ Bifrost that needs a permission.
 
 - [How it works](docs/how-it-works.md) — architecture and the APIs behind it
 - [Building](docs/building.md) — toolchain, signing, troubleshooting
+
+## License
+
+[MIT](LICENSE) — use it, change it, sell it. No warranty.
