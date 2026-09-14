@@ -46,8 +46,10 @@ Finding the list is the fiddly part:
 
 - Other menus share its shape. Brave's **Tab** menu is also a trailing list with
   the active entry checkmarked, and cycling tabs instead of windows would be
-  quietly wrong. The conventional title is tried first, then menus are searched
-  right to left, since the window list sits near the end of the menu bar.
+  quietly wrong. So the Window menu is recognised by the commands only it
+  carries — "Bring All to Front", or Minimize on ⌘M — through their
+  language-independent identifiers and key equivalents, and no other menu is
+  ever considered.
 - **Xcode groups windows by project**, one per separator-delimited group, so the
   last group is not always the whole list. Earlier groups are pulled in while
   they hold exactly one item each; a command block like "Bring All to Front" /

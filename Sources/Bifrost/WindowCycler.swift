@@ -76,34 +76,28 @@ enum WindowCycler {
 
     // MARK: - Window menu
 
-    /// The window entries of the app's Window menu: the run of items after the
-    /// last separator, exactly one of which is checkmarked.
-    ///
-    /// Located by shape rather than by title, since the menu is localised.
     private static func windowMenuEntries(of app: NSRunningApplication) -> [AXUIElement] {
         let element = AXUIElementCreateApplication(app.processIdentifier)
         AXUIElementSetMessagingTimeout(element, messagingTimeout)
 
-        guard let menuBar = elementAttribute(element, kAXMenuBarAttribute) else { return [] }
-        for menuBarItem in searchOrder(in: menuBar) {
-            guard let menu = children(of: menuBarItem).first else { continue }
-            let entries = windowEntries(of: menu)
-            guard !entries.isEmpty else { continue }
-            return entries
-        }
-        return []
+        guard let menuBar = elementAttribute(element, kAXMenuBarAttribute),
+              let windowMenu = windowMenu(in: menuBar)
+        else { return [] }
+        return windowEntries(of: windowMenu)
     }
 
-    /// Menus to search, most likely first.
-    ///
-    /// Other menus share the Window menu's shape — Brave's Tab menu is a list
-    /// of tabs with the active one checkmarked, and cycling those instead would
-    /// be quietly wrong. So try the conventional title first, then work right
-    /// to left, since the window list sits near the end of the menu bar while
-    /// look-alikes such as Tab sit further left.
-    private static func searchOrder(in menuBar: AXUIElement) -> [AXUIElement] {
-        let items = children(of: menuBar)
-        return items.filter { title(of: $0) == "Window" } + items.reversed()
+    /// Other menus can pass for a window list — Brave's Tab menu lists tabs
+    /// with the active one checkmarked, and Finder's View menu checkmarks its
+    /// view mode — so the Window menu is recognised by the commands only it
+    /// carries, not by shape. Its title is localised, so not by that either.
+    private static func windowMenu(in menuBar: AXUIElement) -> AXUIElement? {
+        for menuBarItem in children(of: menuBar).reversed() {
+            guard let menu = children(of: menuBarItem).first else { continue }
+            if children(of: menu).contains(where: { isWindowListAnchor($0) || isMinimize($0) }) {
+                return menu
+            }
+        }
+        return nil
     }
 
     /// The window entries at the end of a menu.
@@ -150,6 +144,20 @@ enum WindowCycler {
     /// Separators carry no title.
     private static func isSeparator(_ element: AXUIElement) -> Bool {
         title(of: element)?.isEmpty ?? true
+    }
+
+    /// AppKit appends the window list after "Bring All to Front" and its
+    /// "Arrange in Front" alternate. Identifiers are selector names, so they
+    /// hold in every language.
+    private static func isWindowListAnchor(_ element: AXUIElement) -> Bool {
+        guard let identifier = identifier(of: element) else { return false }
+        return identifier == "arrangeInFront" || identifier == "alternateArrangeInFront"
+    }
+
+    private static func isMinimize(_ element: AXUIElement) -> Bool {
+        let commandAlone = 0
+        return attribute(element, kAXMenuItemCmdCharAttribute) as? String == "M"
+            && attribute(element, kAXMenuItemCmdModifiersAttribute) as? Int == commandAlone
     }
 
     /// Other marks share the column: ◆ for a minimized window, • for one with
@@ -231,5 +239,10 @@ enum WindowCycler {
 
     private static func title(of element: AXUIElement) -> String? {
         attribute(element, kAXTitleAttribute) as? String
+    }
+
+    private static func identifier(of element: AXUIElement) -> String? {
+        guard let identifier = attribute(element, kAXIdentifierAttribute) as? String, !identifier.isEmpty else { return nil }
+        return identifier
     }
 }
