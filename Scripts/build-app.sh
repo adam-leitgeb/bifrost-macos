@@ -27,9 +27,19 @@ cp "$BIN" "$APP/Contents/MacOS/Bifrost"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
-# Ad-hoc signature: gives the bundle a stable identity for the system's
-# per-app preferences without needing a developer certificate.
-codesign --force --sign - "$APP" >/dev/null 2>&1 || \
-    echo "warning: ad-hoc code signing failed; the app will still run"
+# Sign with a real identity, not ad-hoc. The Accessibility permission is tied
+# to the code signature, so an ad-hoc signature — whose hash changes on every
+# build — would make macOS re-prompt after each rebuild.
+IDENTITY="${BIFROST_SIGN_IDENTITY:-Apple Development: Adam Leitgeb (443BG854Y5)}"
+
+if security find-identity -v -p codesigning | grep -qF "$IDENTITY"; then
+    codesign --force --options runtime --sign "$IDENTITY" "$APP"
+    echo "Signed as: $IDENTITY"
+else
+    echo "warning: identity '$IDENTITY' not found; falling back to ad-hoc."
+    echo "         Accessibility permission will need re-granting after each build."
+    echo "         Set BIFROST_SIGN_IDENTITY to choose another identity."
+    codesign --force --sign - "$APP"
+fi
 
 echo "Built $APP"

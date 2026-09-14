@@ -36,12 +36,20 @@ final class AppStore {
 
     func remove(_ entry: AppEntry) {
         entries.removeAll { $0.id == entry.id }
+        WindowCycler.forget(bundleIdentifier: entry.bundleIdentifier)
         persist()
     }
 
     func setHotkey(_ hotkey: Hotkey?, for entry: AppEntry) {
         guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
         entries[index].hotkey = hotkey
+        persist()
+    }
+
+    func setCyclesWindows(_ enabled: Bool, for entry: AppEntry) {
+        guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+        entries[index].cyclesWindows = enabled
+        if !enabled { WindowCycler.forget(bundleIdentifier: entry.bundleIdentifier) }
         persist()
     }
 
