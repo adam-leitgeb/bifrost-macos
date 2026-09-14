@@ -18,9 +18,12 @@ enum Launcher {
             return
         }
 
-        // Bifrost is an accessory app and never steals focus, so `isActive`
-        // still reflects whichever app the user was actually working in.
-        if entry.cyclesWindows, running.isActive, WindowCycler.isTrusted {
+        // Bifrost is an accessory app and never steals focus, so the frontmost
+        // app is still whichever one the user was working in. `isActive` alone
+        // is not enough: it lags right after a desktop switch, which would turn
+        // a press meant to cycle into a plain re-activation.
+        let alreadyInFront = running.isActive || WindowCycler.ownsFrontWindow(running)
+        if entry.cyclesWindows, alreadyInFront, WindowCycler.isTrusted {
             WindowCycler.advance(for: running, bundleIdentifier: entry.bundleIdentifier)
             return
         }
