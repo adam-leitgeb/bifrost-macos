@@ -17,7 +17,7 @@ import Foundation
 ///
 /// This is the one feature that needs the Accessibility permission: there is
 /// no way to enumerate or raise another app's individual windows without it.
-/// It is opt-in per app so the rest of Bifrost stays permission-free.
+/// It is opt-in so the rest of Bifrost stays permission-free.
 @MainActor
 enum WindowCycler {
     /// Accessibility calls are synchronous IPC into the target app; without a
@@ -43,7 +43,10 @@ enum WindowCycler {
     }
 
     static func openAccessibilitySettings() {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else {
+            return
+        }
+
         NSWorkspace.shared.open(url)
     }
 
@@ -52,7 +55,10 @@ enum WindowCycler {
     /// Only the fallback keeps state; the Window menu already knows which
     /// window is current.
     static func beginCycle(for app: NSRunningApplication, bundleIdentifier: String) {
-        guard windowMenuEntries(of: app).isEmpty else { return }
+        guard windowMenuEntries(of: app).isEmpty else {
+            return
+        }
+
         let windows = cyclableWindows(of: app)
         fallbackCycles[bundleIdentifier] = windows.isEmpty ? nil : (windows, 0)
     }
@@ -77,6 +83,10 @@ enum WindowCycler {
         fallbackCycles[bundleIdentifier] = nil
     }
 
+    static func forgetAll() {
+        fallbackCycles.removeAll()
+    }
+
     // MARK: - Window menu
 
     private static func windowMenuEntries(of app: NSRunningApplication) -> [AXUIElement] {
@@ -85,7 +95,10 @@ enum WindowCycler {
 
         guard let menuBar = elementAttribute(element, kAXMenuBarAttribute),
               let windowMenu = windowMenu(in: menuBar)
-        else { return [] }
+        else {
+            return []
+        }
+
         return windowEntries(of: windowMenu)
     }
 
@@ -95,7 +108,10 @@ enum WindowCycler {
     /// carries, not by shape. Its title is localised, so not by that either.
     private static func windowMenu(in menuBar: AXUIElement) -> AXUIElement? {
         for menuBarItem in children(of: menuBar).reversed() {
-            guard let menu = children(of: menuBarItem).first else { continue }
+            guard let menu = children(of: menuBarItem).first else {
+                continue
+            }
+
             if children(of: menu).contains(where: { isWindowListAnchor($0) || isMinimize($0) }) {
                 return menu
             }
@@ -114,7 +130,9 @@ enum WindowCycler {
         let candidates = items.lastIndex(where: isWindowListAnchor).map { Array(items[($0 + 1)...]) } ?? items
 
         let checkmarked = candidates.filter(isCheckmarked)
-        guard checkmarked.count == 1, let front = checkmarked.first else { return [] }
+        guard checkmarked.count == 1, let front = checkmarked.first else {
+            return []
+        }
 
         let entries: [AXUIElement]
         if let action = identifier(of: front) {
@@ -131,13 +149,20 @@ enum WindowCycler {
 
         for item in items {
             if isSeparator(item) {
-                if !current.isEmpty { groups.append(current) }
+                if !current.isEmpty {
+                    groups.append(current)
+                }
+
                 current = []
             } else {
                 current.append(item)
             }
         }
-        if !current.isEmpty { groups.append(current) }
+
+        if !current.isEmpty {
+            groups.append(current)
+        }
+
         return groups
     }
 
@@ -150,7 +175,10 @@ enum WindowCycler {
     /// "Arrange in Front" alternate. Identifiers are selector names, so they
     /// hold in every language.
     private static func isWindowListAnchor(_ element: AXUIElement) -> Bool {
-        guard let identifier = identifier(of: element) else { return false }
+        guard let identifier = identifier(of: element) else {
+            return false
+        }
+
         return identifier == "arrangeInFront" || identifier == "alternateArrangeInFront"
     }
 
@@ -198,21 +226,32 @@ enum WindowCycler {
         let element = AXUIElementCreateApplication(app.processIdentifier)
         AXUIElementSetMessagingTimeout(element, messagingTimeout)
 
-        guard let windows = attribute(element, kAXWindowsAttribute) as? [AXUIElement] else { return [] }
+        guard let windows = attribute(element, kAXWindowsAttribute) as? [AXUIElement] else {
+            return []
+        }
+
         return windows.filter { window in
-            if attribute(window, kAXMinimizedAttribute) as? Bool == true { return false }
+            if attribute(window, kAXMinimizedAttribute) as? Bool == true {
+                return false
+            }
+
             if let subrole = attribute(window, kAXSubroleAttribute) as? String {
                 return subrole == kAXStandardWindowSubrole
             }
+
             return attribute(window, kAXRoleAttribute) as? String == kAXWindowRole
         }
     }
 
     private static func sameWindows(_ lhs: [AXUIElement], _ rhs: [AXUIElement]) -> Bool {
-        guard lhs.count == rhs.count else { return false }
+        guard lhs.count == rhs.count else {
+            return false
+        }
+
         for window in lhs where !rhs.contains(where: { CFEqual($0, window) }) {
             return false
         }
+
         return true
     }
 
@@ -220,16 +259,26 @@ enum WindowCycler {
 
     private static func attribute(_ element: AXUIElement, _ name: String) -> Any? {
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
+        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else {
+            return nil
+        }
+
         return value
     }
 
     /// A conditional cast to a CoreFoundation type always succeeds, so the
     /// type has to be checked explicitly.
     private static func elementAttribute(_ element: AXUIElement, _ name: String) -> AXUIElement? {
-        guard let value = attribute(element, name) else { return nil }
+        guard let value = attribute(element, name) else {
+            return nil
+        }
+
         let raw = value as CFTypeRef
-        guard CFGetTypeID(raw) == AXUIElementGetTypeID() else { return nil }
+
+        guard CFGetTypeID(raw) == AXUIElementGetTypeID() else {
+            return nil
+        }
+
         return (raw as! AXUIElement)
     }
 
@@ -242,7 +291,10 @@ enum WindowCycler {
     }
 
     private static func identifier(of element: AXUIElement) -> String? {
-        guard let identifier = attribute(element, kAXIdentifierAttribute) as? String, !identifier.isEmpty else { return nil }
+        guard let identifier = attribute(element, kAXIdentifierAttribute) as? String, !identifier.isEmpty else {
+            return nil
+        }
+
         return identifier
     }
 }

@@ -19,7 +19,10 @@ enum AppPicker {
         // needs to come forward for the panel to be usable.
         NSApp.activate(ignoringOtherApps: true)
         panel.begin { response in
-            guard response == .OK else { return }
+            guard response == .OK else {
+                return
+            }
+
             completion(panel.urls)
         }
     }

@@ -10,6 +10,10 @@ final class AppStore {
 
     private(set) var entries: [AppEntry] = []
 
+    private(set) var cyclesWindows = UserDefaults.standard.bool(forKey: cyclesWindowsKey)
+
+    private static let cyclesWindowsKey = "cyclesWindows"
+
     private let fileURL: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return base.appendingPathComponent("Bifrost/entries.json")
@@ -24,12 +28,22 @@ final class AppStore {
     func add(urls: [URL]) {
         var added = false
         for url in urls {
-            guard let entry = AppEntry(url: url) else { continue }
-            guard !entries.contains(where: { $0.bundleIdentifier == entry.bundleIdentifier }) else { continue }
+            guard let entry = AppEntry(url: url) else {
+                continue
+            }
+
+            guard !entries.contains(where: { $0.bundleIdentifier == entry.bundleIdentifier }) else {
+                continue
+            }
+
             entries.append(entry)
             added = true
         }
-        guard added else { return }
+
+        guard added else {
+            return
+        }
+
         entries.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         persist()
     }
@@ -41,16 +55,21 @@ final class AppStore {
     }
 
     func setHotkey(_ hotkey: Hotkey?, for entry: AppEntry) {
-        guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
+        guard let index = entries.firstIndex(where: { $0.id == entry.id }) else {
+            return
+        }
+
         entries[index].hotkey = hotkey
         persist()
     }
 
-    func setCyclesWindows(_ enabled: Bool, for entry: AppEntry) {
-        guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
-        entries[index].cyclesWindows = enabled
-        if !enabled { WindowCycler.forget(bundleIdentifier: entry.bundleIdentifier) }
-        persist()
+    func setCyclesWindows(_ enabled: Bool) {
+        cyclesWindows = enabled
+        UserDefaults.standard.set(enabled, forKey: Self.cyclesWindowsKey)
+
+        if !enabled {
+            WindowCycler.forgetAll()
+        }
     }
 
     /// The entry, if any, already using `hotkey` — other than `entry` itself.
@@ -63,8 +82,11 @@ final class AppStore {
     func syncHotkeys() {
         HotKeyManager.shared.setHotkeys(
             entries.compactMap { entry in
-                guard let hotkey = entry.hotkey else { return nil }
-                return (hotkey: hotkey, action: { Launcher.activate(entry) })
+                guard let hotkey = entry.hotkey else {
+                    return nil
+                }
+
+                return (hotkey: hotkey, action: { Launcher.activate(entry, cyclesWindows: self.cyclesWindows) })
             }
         )
     }
@@ -87,7 +109,10 @@ final class AppStore {
     }
 
     private func load() {
-        guard let data = try? Data(contentsOf: fileURL) else { return }
+        guard let data = try? Data(contentsOf: fileURL) else {
+            return
+        }
+
         do {
             entries = try JSONDecoder().decode([AppEntry].self, from: data)
         } catch {

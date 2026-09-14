@@ -24,7 +24,7 @@ matter which app is frontmost.
 Nothing else can enumerate or raise another app's individual windows.
 `CGWindowListCopyWindowInfo` can list windows but not act on them, and
 synthesizing ⌘\` is itself gated behind the same permission. So cycling is
-opt-in per app, and the rest of Bifrost stays permission-free.
+opt-in, and the rest of Bifrost stays permission-free.
 
 ## Reaching other desktops
 

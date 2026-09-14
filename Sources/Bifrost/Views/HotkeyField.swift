@@ -36,17 +36,26 @@ struct HotkeyField: View {
     }
 
     private var label: String {
-        if isRecording { return "Press keys…" }
+        if isRecording {
+            return "Press keys…"
+        }
+
         return hotkey?.displayString ?? "Record"
     }
 
     private var foreground: Color {
-        if isRecording { return .primary }
+        if isRecording {
+            return .primary
+        }
+
         return hotkey == nil ? .secondary : .primary
     }
 
     private var background: some ShapeStyle {
-        if isRecording { return AnyShapeStyle(.tint.opacity(0.15)) }
+        if isRecording {
+            return AnyShapeStyle(.tint.opacity(0.15))
+        }
+
         return AnyShapeStyle(Color.primary.opacity(isHovering ? 0.12 : 0.07))
     }
 
@@ -57,7 +66,10 @@ struct HotkeyField: View {
     }
 
     private func startRecording() {
-        guard !isRecording else { return }
+        guard !isRecording else {
+            return
+        }
+
         isRecording = true
 
         // Otherwise pressing a combination that is already registered would
@@ -65,16 +77,29 @@ struct HotkeyField: View {
         HotKeyManager.shared.pause()
 
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .flagsChanged]) { event in
-            guard isRecording else { return event }
-            if event.type == .keyDown { handle(event) }
+            guard isRecording else {
+                return event
+            }
+
+            if event.type == .keyDown {
+                handle(event)
+            }
+
             return nil  // swallow the event either way
         }
     }
 
     private func stopRecording() {
-        if let monitor { NSEvent.removeMonitor(monitor) }
+        if let monitor {
+            NSEvent.removeMonitor(monitor)
+        }
+
         monitor = nil
-        guard isRecording else { return }
+
+        guard isRecording else {
+            return
+        }
+
         isRecording = false
         HotKeyManager.shared.resume()
     }

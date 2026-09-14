@@ -21,7 +21,7 @@ it isn't, and can step through its windows if you press again.
 
 - **Any app, any shortcut** — add from `/Applications`, record a combination
 - **Launch or focus** — one key does both
-- **Window cycling** — press again to move through an app's windows, per app
+- **Window cycling** — press again to move through an app's windows
 - **Out of the way** — menu bar only, no Dock icon, no main window
 - **No permission for shortcuts** — only the optional window cycling asks for Accessibility
 - **No dependencies** — system frameworks only
@@ -49,8 +49,8 @@ recording, Delete clears a shortcut. Every shortcut needs at least one of
 
 ### Window cycling
 
-Click the window button on a row to turn cycling on for that app. Press its
-shortcut again while the app is already frontmost and Bifrost moves to the next
+Turn on **Cycle windows on repeated press** at the bottom of the menu. Press an
+app's shortcut again while it is already frontmost and Bifrost moves to the next
 window — handy for two browser windows, or several Xcode projects.
 
 macOS asks for Accessibility access the first time you switch it on. That is the

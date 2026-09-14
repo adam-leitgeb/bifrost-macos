@@ -4,8 +4,14 @@ import Foundation
 /// Turns virtual key codes into the glyphs macOS uses in menus.
 enum KeyNames {
     static func display(for keyCode: UInt32) -> String {
-        if let special = special[Int(keyCode)] { return special }
-        if let character = translateUsingCurrentLayout(keyCode) { return character }
+        if let special = special[Int(keyCode)] {
+            return special
+        }
+
+        if let character = translateUsingCurrentLayout(keyCode) {
+            return character
+        }
+
         return "Key \(keyCode)"
     }
 
@@ -29,7 +35,9 @@ enum KeyNames {
     private static func translateUsingCurrentLayout(_ keyCode: UInt32) -> String? {
         guard let source = TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),
               let rawLayout = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData)
-        else { return nil }
+        else {
+            return nil
+        }
 
         let layoutData = Unmanaged<CFData>.fromOpaque(rawLayout).takeUnretainedValue() as Data
         var deadKeyState: UInt32 = 0
@@ -54,7 +62,10 @@ enum KeyNames {
             )
         }
 
-        guard status == noErr, length > 0 else { return nil }
+        guard status == noErr, length > 0 else {
+            return nil
+        }
+
         return String(utf16CodeUnits: characters, count: length).uppercased()
     }
 }

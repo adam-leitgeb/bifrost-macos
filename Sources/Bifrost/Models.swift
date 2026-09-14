@@ -12,10 +12,23 @@ struct Hotkey: Codable, Equatable, Hashable {
     /// `⌃⌥⇧⌘K`-style label, in the order the system menus use.
     var displayString: String {
         var result = ""
-        if modifiers & UInt32(controlKey) != 0 { result += "⌃" }
-        if modifiers & UInt32(optionKey) != 0 { result += "⌥" }
-        if modifiers & UInt32(shiftKey) != 0 { result += "⇧" }
-        if modifiers & UInt32(cmdKey) != 0 { result += "⌘" }
+
+        if modifiers & UInt32(controlKey) != 0 {
+            result += "⌃"
+        }
+
+        if modifiers & UInt32(optionKey) != 0 {
+            result += "⌥"
+        }
+
+        if modifiers & UInt32(shiftKey) != 0 {
+            result += "⇧"
+        }
+
+        if modifiers & UInt32(cmdKey) != 0 {
+            result += "⌘"
+        }
+
         return result + KeyNames.display(for: keyCode)
     }
 
@@ -31,10 +44,23 @@ struct Hotkey: Codable, Equatable, Hashable {
 
     init(keyCode: UInt16, cocoaModifiers: NSEvent.ModifierFlags) {
         var mask: UInt32 = 0
-        if cocoaModifiers.contains(.command) { mask |= UInt32(cmdKey) }
-        if cocoaModifiers.contains(.option) { mask |= UInt32(optionKey) }
-        if cocoaModifiers.contains(.control) { mask |= UInt32(controlKey) }
-        if cocoaModifiers.contains(.shift) { mask |= UInt32(shiftKey) }
+
+        if cocoaModifiers.contains(.command) {
+            mask |= UInt32(cmdKey)
+        }
+
+        if cocoaModifiers.contains(.option) {
+            mask |= UInt32(optionKey)
+        }
+
+        if cocoaModifiers.contains(.control) {
+            mask |= UInt32(controlKey)
+        }
+
+        if cocoaModifiers.contains(.shift) {
+            mask |= UInt32(shiftKey)
+        }
+
         self.keyCode = UInt32(keyCode)
         self.modifiers = mask
     }
@@ -47,35 +73,19 @@ struct AppEntry: Codable, Identifiable, Equatable {
     var bundleIdentifier: String
     var path: String
     var hotkey: Hotkey?
-    /// Opt-in: pressing the hotkey again while this app is frontmost moves to
-    /// its next window. Requires the Accessibility permission.
-    var cyclesWindows: Bool
 
     init(
         id: UUID = UUID(),
         name: String,
         bundleIdentifier: String,
         path: String,
-        hotkey: Hotkey? = nil,
-        cyclesWindows: Bool = false
+        hotkey: Hotkey? = nil
     ) {
         self.id = id
         self.name = name
         self.bundleIdentifier = bundleIdentifier
         self.path = path
         self.hotkey = hotkey
-        self.cyclesWindows = cyclesWindows
-    }
-
-    /// Hand-rolled so entries saved before window cycling existed still load.
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        name = try container.decode(String.self, forKey: .name)
-        bundleIdentifier = try container.decode(String.self, forKey: .bundleIdentifier)
-        path = try container.decode(String.self, forKey: .path)
-        hotkey = try container.decodeIfPresent(Hotkey.self, forKey: .hotkey)
-        cyclesWindows = try container.decodeIfPresent(Bool.self, forKey: .cyclesWindows) ?? false
     }
 
     var url: URL { URL(fileURLWithPath: path) }
@@ -91,7 +101,10 @@ struct AppEntry: Codable, Identifiable, Equatable {
     }
 
     init?(url: URL) {
-        guard let bundle = Bundle(url: url), let identifier = bundle.bundleIdentifier else { return nil }
+        guard let bundle = Bundle(url: url), let identifier = bundle.bundleIdentifier else {
+            return nil
+        }
+
         let name = FileManager.default.displayName(atPath: url.path)
         self.init(
             name: name.hasSuffix(".app") ? String(name.dropLast(4)) : name,

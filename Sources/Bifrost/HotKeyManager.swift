@@ -36,13 +36,19 @@ final class HotKeyManager {
     /// Suspends all hotkeys, so recording a new one cannot trigger an existing
     /// one. Balanced by `resume()`.
     func pause() {
-        guard !isPaused else { return }
+        guard !isPaused else {
+            return
+        }
+
         isPaused = true
         unregisterAll()
     }
 
     func resume() {
-        guard isPaused else { return }
+        guard isPaused else {
+            return
+        }
+
         isPaused = false
         reload()
     }
@@ -51,7 +57,11 @@ final class HotKeyManager {
 
     private func reload() {
         unregisterAll()
-        guard !isPaused else { return }
+
+        guard !isPaused else {
+            return
+        }
+
         installEventHandlerIfNeeded()
         for item in desired where item.hotkey.isValid {
             register(item.hotkey, action: item.action)
@@ -74,7 +84,10 @@ final class HotKeyManager {
 
         // A non-zero status usually means another app already owns the
         // combination; skip it rather than failing the whole reload.
-        guard status == noErr, let ref else { return }
+        guard status == noErr, let ref else {
+            return
+        }
+
         registrations[id] = Registration(ref: ref, action: action)
     }
 
@@ -86,7 +99,9 @@ final class HotKeyManager {
     }
 
     private func installEventHandlerIfNeeded() {
-        guard eventHandler == nil else { return }
+        guard eventHandler == nil else {
+            return
+        }
 
         var spec = EventTypeSpec(
             eventClass: OSType(kEventClassKeyboard),
@@ -99,7 +114,9 @@ final class HotKeyManager {
         InstallEventHandler(
             GetEventDispatcherTarget(),
             { _, event, _ -> OSStatus in
-                guard let event else { return OSStatus(eventNotHandledErr) }
+                guard let event else {
+                    return OSStatus(eventNotHandledErr)
+                }
 
                 var hotKeyID = EventHotKeyID()
                 let status = GetEventParameter(

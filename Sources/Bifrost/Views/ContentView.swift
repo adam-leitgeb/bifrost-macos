@@ -36,10 +36,8 @@ struct ContentView: View {
         .onAppear { isTrusted = WindowCycler.isTrusted }
     }
 
-    /// Cycling is switched on somewhere, but the permission it needs is not
-    /// granted — without this the feature would just silently do nothing.
     private var needsAccessibility: Bool {
-        !isTrusted && store.entries.contains(where: \.cyclesWindows)
+        !isTrusted && store.cyclesWindows
     }
 
     // MARK: - Sections
@@ -81,8 +79,6 @@ struct ContentView: View {
                 ForEach(store.entries) { entry in
                     EntryRow(entry: entry) { hotkey in
                         assign(hotkey, to: entry)
-                    } onToggleCycling: {
-                        toggleCycling(for: entry)
                     } onRemove: {
                         store.remove(entry)
                     }
@@ -134,19 +130,42 @@ struct ContentView: View {
     }
 
     private var footer: some View {
-        HStack {
-            Button("Add App…") {
-                AppPicker.present { urls in store.add(urls: urls) }
+        VStack(spacing: 0) {
+            cyclingToggle
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+
+            Divider()
+
+            HStack {
+                Button("Add App…") {
+                    AppPicker.present { urls in store.add(urls: urls) }
+                }
+                Spacer()
+                Button("Quit") {
+                    NSApplication.shared.terminate(nil)
+                }
+                .keyboardShortcut("q")
             }
-            Spacer()
-            Button("Quit") {
-                NSApplication.shared.terminate(nil)
-            }
-            .keyboardShortcut("q")
+            .controlSize(.small)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
+    }
+
+    private var cyclingToggle: some View {
+        Toggle(isOn: Binding(get: { store.cyclesWindows }, set: { setCyclesWindows($0) })) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Cycle windows on repeated press")
+                    .font(.system(size: 13))
+                Text("Requires Accessibility permission")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .toggleStyle(.switch)
         .controlSize(.small)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
     }
 
     // MARK: - Actions
@@ -156,29 +175,29 @@ struct ContentView: View {
             conflictMessage = "\(hotkey.displayString) is already used by \(owner.name)."
             return
         }
+
         conflictMessage = nil
         store.setHotkey(hotkey, for: entry)
     }
 
-    private func toggleCycling(for entry: AppEntry) {
-        let enabling = !entry.cyclesWindows
-        store.setCyclesWindows(enabling, for: entry)
+    private func setCyclesWindows(_ enabled: Bool) {
+        store.setCyclesWindows(enabled)
 
         // Ask for the permission at the moment it first becomes relevant,
         // rather than on launch.
-        if enabling && !WindowCycler.isTrusted {
+        if enabled && !WindowCycler.isTrusted {
             WindowCycler.requestTrust()
         }
+
         isTrusted = WindowCycler.isTrusted
     }
 }
 
-/// One row: icon, name, window-cycling toggle, shortcut recorder, and a remove
-/// button that appears on hover.
+/// One row: icon, name, shortcut recorder, and a remove button that appears on
+/// hover.
 private struct EntryRow: View {
     let entry: AppEntry
     let onHotkeyChange: (Hotkey?) -> Void
-    let onToggleCycling: () -> Void
     let onRemove: () -> Void
 
     @State private var isHovering = false
@@ -201,18 +220,6 @@ private struct EntryRow: View {
             }
 
             Spacer(minLength: 4)
-
-            Button(action: onToggleCycling) {
-                Image(systemName: "macwindow.on.rectangle")
-                    .font(.system(size: 12))
-                    .foregroundStyle(entry.cyclesWindows ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
-                    .frame(width: 20, height: 18)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help(entry.cyclesWindows
-                  ? "Repeat the shortcut to cycle \(entry.name) windows"
-                  : "Cycle windows on repeat press (needs Accessibility)")
 
             HotkeyField(hotkey: entry.hotkey, onChange: onHotkeyChange)
 
