@@ -20,8 +20,8 @@ enum Launcher {
 
         // Bifrost is an accessory app and never steals focus, so `isActive`
         // still reflects whichever app the user was actually working in.
-        if entry.cyclesWindows, running.isActive, WindowCycler.isTrusted {
-            WindowCycler.advance(for: running, bundleIdentifier: entry.bundleIdentifier)
+        if entry.cyclesWindows, running.isActive, WindowCycler.isTrusted,
+           WindowCycler.advance(for: running, bundleIdentifier: entry.bundleIdentifier) {
             return
         }
 
