@@ -64,7 +64,7 @@ enum WindowCycler {
 
         // The checkmark marks the window in front, so there is no rotation
         // state to keep and nothing that can drift out of step.
-        let current = entries.firstIndex { markChar(of: $0) != nil } ?? 0
+        let current = entries.firstIndex(where: isCheckmarked) ?? 0
         let target = entries[(current + 1) % entries.count]
         AXUIElementPerformAction(target, kAXPressAction as CFString)
         return true
@@ -125,7 +125,7 @@ enum WindowCycler {
 
         // Exactly one entry is checkmarked: the window in front.
         guard collected.count > 1,
-              collected.filter({ markChar(of: $0) != nil }).count == 1
+              collected.filter(isCheckmarked).count == 1
         else { return [] }
         return collected
     }
@@ -152,9 +152,10 @@ enum WindowCycler {
         title(of: element)?.isEmpty ?? true
     }
 
-    private static func markChar(of element: AXUIElement) -> String? {
-        guard let mark = attribute(element, "AXMenuItemMarkChar") as? String, !mark.isEmpty else { return nil }
-        return mark
+    /// Other marks share the column: ◆ for a minimized window, • for one with
+    /// unsaved changes or a running process.
+    private static func isCheckmarked(_ element: AXUIElement) -> Bool {
+        attribute(element, "AXMenuItemMarkChar") as? String == "✓"
     }
 
     // MARK: - Fallback: windows on the current desktop
