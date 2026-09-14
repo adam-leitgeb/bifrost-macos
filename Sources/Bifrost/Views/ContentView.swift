@@ -175,6 +175,7 @@ struct ContentView: View {
             conflictMessage = "\(hotkey.displayString) is already used by \(owner.name)."
             return
         }
+
         conflictMessage = nil
         store.setHotkey(hotkey, for: entry)
     }
@@ -187,6 +188,7 @@ struct ContentView: View {
         if enabled && !WindowCycler.isTrusted {
             WindowCycler.requestTrust()
         }
+
         isTrusted = WindowCycler.isTrusted
     }
 }

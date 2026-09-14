@@ -12,10 +12,23 @@ struct Hotkey: Codable, Equatable, Hashable {
     /// `⌃⌥⇧⌘K`-style label, in the order the system menus use.
     var displayString: String {
         var result = ""
-        if modifiers & UInt32(controlKey) != 0 { result += "⌃" }
-        if modifiers & UInt32(optionKey) != 0 { result += "⌥" }
-        if modifiers & UInt32(shiftKey) != 0 { result += "⇧" }
-        if modifiers & UInt32(cmdKey) != 0 { result += "⌘" }
+
+        if modifiers & UInt32(controlKey) != 0 {
+            result += "⌃"
+        }
+
+        if modifiers & UInt32(optionKey) != 0 {
+            result += "⌥"
+        }
+
+        if modifiers & UInt32(shiftKey) != 0 {
+            result += "⇧"
+        }
+
+        if modifiers & UInt32(cmdKey) != 0 {
+            result += "⌘"
+        }
+
         return result + KeyNames.display(for: keyCode)
     }
 
@@ -31,10 +44,23 @@ struct Hotkey: Codable, Equatable, Hashable {
 
     init(keyCode: UInt16, cocoaModifiers: NSEvent.ModifierFlags) {
         var mask: UInt32 = 0
-        if cocoaModifiers.contains(.command) { mask |= UInt32(cmdKey) }
-        if cocoaModifiers.contains(.option) { mask |= UInt32(optionKey) }
-        if cocoaModifiers.contains(.control) { mask |= UInt32(controlKey) }
-        if cocoaModifiers.contains(.shift) { mask |= UInt32(shiftKey) }
+
+        if cocoaModifiers.contains(.command) {
+            mask |= UInt32(cmdKey)
+        }
+
+        if cocoaModifiers.contains(.option) {
+            mask |= UInt32(optionKey)
+        }
+
+        if cocoaModifiers.contains(.control) {
+            mask |= UInt32(controlKey)
+        }
+
+        if cocoaModifiers.contains(.shift) {
+            mask |= UInt32(shiftKey)
+        }
+
         self.keyCode = UInt32(keyCode)
         self.modifiers = mask
     }
@@ -75,7 +101,10 @@ struct AppEntry: Codable, Identifiable, Equatable {
     }
 
     init?(url: URL) {
-        guard let bundle = Bundle(url: url), let identifier = bundle.bundleIdentifier else { return nil }
+        guard let bundle = Bundle(url: url), let identifier = bundle.bundleIdentifier else {
+            return nil
+        }
+
         let name = FileManager.default.displayName(atPath: url.path)
         self.init(
             name: name.hasSuffix(".app") ? String(name.dropLast(4)) : name,
