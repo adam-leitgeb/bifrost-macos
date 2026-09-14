@@ -17,7 +17,7 @@ import Foundation
 ///
 /// This is the one feature that needs the Accessibility permission: there is
 /// no way to enumerate or raise another app's individual windows without it.
-/// It is opt-in per app so the rest of Bifrost stays permission-free.
+/// It is opt-in so the rest of Bifrost stays permission-free.
 @MainActor
 enum WindowCycler {
     /// Accessibility calls are synchronous IPC into the target app; without a
@@ -75,6 +75,10 @@ enum WindowCycler {
 
     static func forget(bundleIdentifier: String) {
         fallbackCycles[bundleIdentifier] = nil
+    }
+
+    static func forgetAll() {
+        fallbackCycles.removeAll()
     }
 
     // MARK: - Window menu

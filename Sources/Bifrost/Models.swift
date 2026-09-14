@@ -47,35 +47,19 @@ struct AppEntry: Codable, Identifiable, Equatable {
     var bundleIdentifier: String
     var path: String
     var hotkey: Hotkey?
-    /// Opt-in: pressing the hotkey again while this app is frontmost moves to
-    /// its next window. Requires the Accessibility permission.
-    var cyclesWindows: Bool
 
     init(
         id: UUID = UUID(),
         name: String,
         bundleIdentifier: String,
         path: String,
-        hotkey: Hotkey? = nil,
-        cyclesWindows: Bool = false
+        hotkey: Hotkey? = nil
     ) {
         self.id = id
         self.name = name
         self.bundleIdentifier = bundleIdentifier
         self.path = path
         self.hotkey = hotkey
-        self.cyclesWindows = cyclesWindows
-    }
-
-    /// Hand-rolled so entries saved before window cycling existed still load.
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        name = try container.decode(String.self, forKey: .name)
-        bundleIdentifier = try container.decode(String.self, forKey: .bundleIdentifier)
-        path = try container.decode(String.self, forKey: .path)
-        hotkey = try container.decodeIfPresent(Hotkey.self, forKey: .hotkey)
-        cyclesWindows = try container.decodeIfPresent(Bool.self, forKey: .cyclesWindows) ?? false
     }
 
     var url: URL { URL(fileURLWithPath: path) }

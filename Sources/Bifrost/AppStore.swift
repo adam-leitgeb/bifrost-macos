@@ -10,6 +10,10 @@ final class AppStore {
 
     private(set) var entries: [AppEntry] = []
 
+    private(set) var cyclesWindows = UserDefaults.standard.bool(forKey: cyclesWindowsKey)
+
+    private static let cyclesWindowsKey = "cyclesWindows"
+
     private let fileURL: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         return base.appendingPathComponent("Bifrost/entries.json")
@@ -46,11 +50,10 @@ final class AppStore {
         persist()
     }
 
-    func setCyclesWindows(_ enabled: Bool, for entry: AppEntry) {
-        guard let index = entries.firstIndex(where: { $0.id == entry.id }) else { return }
-        entries[index].cyclesWindows = enabled
-        if !enabled { WindowCycler.forget(bundleIdentifier: entry.bundleIdentifier) }
-        persist()
+    func setCyclesWindows(_ enabled: Bool) {
+        cyclesWindows = enabled
+        UserDefaults.standard.set(enabled, forKey: Self.cyclesWindowsKey)
+        if !enabled { WindowCycler.forgetAll() }
     }
 
     /// The entry, if any, already using `hotkey` — other than `entry` itself.
@@ -64,7 +67,7 @@ final class AppStore {
         HotKeyManager.shared.setHotkeys(
             entries.compactMap { entry in
                 guard let hotkey = entry.hotkey else { return nil }
-                return (hotkey: hotkey, action: { Launcher.activate(entry) })
+                return (hotkey: hotkey, action: { Launcher.activate(entry, cyclesWindows: self.cyclesWindows) })
             }
         )
     }

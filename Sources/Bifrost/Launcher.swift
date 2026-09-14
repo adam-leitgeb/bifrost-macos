@@ -2,11 +2,11 @@ import AppKit
 
 /// Brings an app to the front, launching it first if it is not running.
 ///
-/// When the app opts into window cycling, pressing the hotkey while it is
-/// *already* frontmost moves to its next window instead of doing nothing.
+/// With window cycling on, pressing the hotkey while the app is *already*
+/// frontmost moves to its next window instead of doing nothing.
 enum Launcher {
     @MainActor
-    static func activate(_ entry: AppEntry) {
+    static func activate(_ entry: AppEntry, cyclesWindows: Bool) {
         let running = NSRunningApplication.runningApplications(
             withBundleIdentifier: entry.bundleIdentifier
         ).first
@@ -19,7 +19,7 @@ enum Launcher {
 
         // Bifrost is an accessory app and never steals focus, so `isActive`
         // still reflects whichever app the user was actually working in.
-        if entry.cyclesWindows, running.isActive, WindowCycler.isTrusted,
+        if cyclesWindows, running.isActive, WindowCycler.isTrusted,
            WindowCycler.advance(for: running, bundleIdentifier: entry.bundleIdentifier) {
             return
         }
@@ -37,7 +37,7 @@ enum Launcher {
         // windows on every desktop, and an app that has some ignores it.
         open(running.bundleURL ?? entry.url)
 
-        if entry.cyclesWindows, WindowCycler.isTrusted {
+        if cyclesWindows, WindowCycler.isTrusted {
             // Pin the rotation to the window that is now in front, so the next
             // press steps off it predictably.
             WindowCycler.beginCycle(for: running, bundleIdentifier: entry.bundleIdentifier)
