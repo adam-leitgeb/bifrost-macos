@@ -14,13 +14,16 @@ import Foundation
 ///
 /// Apps without a usable Window menu fall back to cycling the windows on the
 /// current desktop.
+///
+/// This is the one feature that needs the Accessibility permission: there is
+/// no way to enumerate or raise another app's individual windows without it.
+/// It is opt-in per app so the rest of Bifrost stays permission-free.
 @MainActor
 enum WindowCycler {
     /// Accessibility calls are synchronous IPC into the target app; without a
     /// timeout a beachballing app would hang our hotkey handler.
     private static let messagingTimeout: Float = 0.5
 
-    /// Rotation state for the fallback path only.
     private static var fallbackCycles: [String: (windows: [AXUIElement], index: Int)] = [:]
 
     // MARK: - Permission
@@ -29,6 +32,7 @@ enum WindowCycler {
         AXIsProcessTrusted()
     }
 
+    /// Shows the system's "grant Accessibility" prompt if not yet trusted.
     @discardableResult
     static func requestTrust() -> Bool {
         // The SDK imports `kAXTrustedCheckOptionPrompt` as a mutable global,
@@ -53,8 +57,7 @@ enum WindowCycler {
         fallbackCycles[bundleIdentifier] = windows.isEmpty ? nil : (windows, 0)
     }
 
-    /// Moves to the app's next window. Returns false when there is nothing to
-    /// cycle through.
+    /// Returns false when there is nothing to cycle through.
     @discardableResult
     static func advance(for app: NSRunningApplication, bundleIdentifier: String) -> Bool {
         let entries = windowMenuEntries(of: app)
