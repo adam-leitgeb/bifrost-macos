@@ -1,105 +1,63 @@
-# Bifrost
+<p align="center">
+  <img src="docs/assets/hero.png" width="720" alt="The Bifrost menu, listing apps with their shortcuts">
+</p>
 
-A menu-bar-only macOS app that gives any application a global hotkey. Press the
-shortcut and the app comes to the front — launching first if it isn't running.
+<h1 align="center">Bifrost</h1>
 
-Built with SwiftUI's `MenuBarExtra` and Carbon's `RegisterEventHotKey`, using
-nothing but system frameworks. No dependencies, no Accessibility permission, no
-Dock icon.
+<p align="center">Global hotkeys for your macOS apps, from the menu bar.</p>
 
-## Build
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-14%2B-black" alt="macOS 14+">
+  <img src="https://img.shields.io/badge/Swift-6-orange" alt="Swift 6">
+  <img src="https://img.shields.io/badge/dependencies-none-brightgreen" alt="No dependencies">
+</p>
+
+---
+
+Press a shortcut, get your app. Bifrost focuses it if it's open, launches it if
+it isn't, and can step through its windows if you press again.
+
+## Features
+
+- **Any app, any shortcut** — add from `/Applications`, record a combination
+- **Launch or focus** — one key does both
+- **Window cycling** — press again to move through an app's windows, per app
+- **Out of the way** — menu bar only, no Dock icon, no main window
+- **No permission for shortcuts** — only the optional window cycling asks for Accessibility
+- **No dependencies** — system frameworks only
+
+## Install
+
+Requires macOS 14 or later, and Xcode to build.
 
 ```sh
+git clone https://github.com/adam-leitgeb/bifrost-macos.git
+cd bifrost-macos
 ./Scripts/build-app.sh
 open build/Bifrost.app
 ```
 
-To work on it in Xcode, open `Package.swift` — though running from Xcode builds
-a bare executable rather than the `.app` bundle, so the menu bar item behaves
-best when launched from `build/Bifrost.app`.
+## Usage
 
-## Use
+1. Click the rainbow icon in the menu bar
+2. **Add App…**, then pick one or more apps
+3. Click **Record** and press your combination
 
-1. Click the rainbow icon in the menu bar.
-2. **Add App…** opens `/Applications`; pick one or several.
-3. Click **Record** next to an app and press the combination you want.
-   - Escape cancels, Delete clears the shortcut.
-   - At least one of ⌘ ⌥ ⌃ is required, so ordinary typing is never captured.
+Shortcuts apply immediately and come back on the next launch. Escape cancels a
+recording, Delete clears a shortcut. Every shortcut needs at least one of
+⌘ ⌥ ⌃, so ordinary typing is never captured.
 
-Shortcuts take effect immediately and are restored on the next launch.
+### Window cycling
 
-### Window cycling (optional, per app)
+Click the window button on a row to turn cycling on for that app. Press its
+shortcut again while the app is already frontmost and Bifrost moves to the next
+window — handy for two browser windows, or several Xcode projects.
 
-The window button in each row turns on cycling for that app: press its shortcut
-again while it is already frontmost and Bifrost moves to its next window. Useful
-for two Brave windows, or several Xcode projects.
+macOS asks for Accessibility access the first time you switch it on. That is the
+only way to reach another app's individual windows, and it's the only part of
+Bifrost that needs a permission.
 
-This is the only feature that needs the **Accessibility** permission — there is
-no way to enumerate or raise another app's individual windows without it. It is
-off by default and per app, so everything else stays permission-free. macOS
-prompts the first time you switch it on; you may need to reopen the menu
-afterwards for Bifrost to notice the grant.
+## Docs
 
-Minimized windows are skipped, as are panels and inspectors — only standard
-windows take part.
-
-## How it works
-
-| Concern | Approach |
-| --- | --- |
-| Menu bar only | `LSUIElement` in `Info.plist` plus `NSApp.setActivationPolicy(.accessory)` |
-| Global hotkeys | Carbon `RegisterEventHotKey` — handled by the window server, so no Accessibility permission is needed |
-| Recording | A local `NSEvent` monitor, with registered hotkeys paused so an existing shortcut can't fire mid-recording |
-| Key labels | `UCKeyTranslate` against the active layout, so non-QWERTY keyboards show the right glyph |
-| Activation | `NSRunningApplication.activate()`, preceded by `NSApp.yieldActivation(to:)` for macOS cooperative activation; falls back to `NSWorkspace.openApplication` |
-| Window cycling | Accessibility API: `kAXWindowsAttribute` to enumerate, `kAXRaiseAction` to raise |
-| Storage | JSON at `~/Library/Application Support/Bifrost/entries.json` |
-
-Carbon's hotkey API is old but is not deprecated, and remains the only way to
-claim a system-wide shortcut without the Accessibility permission an event tap
-would require.
-
-## Layout
-
-```
-Sources/Bifrost/
-  BifrostApp.swift      @main scene, app delegate
-  Models.swift          Hotkey and AppEntry
-  AppStore.swift        list, persistence, hotkey sync
-  HotKeyManager.swift   Carbon registration and dispatch
-  Launcher.swift        activate, launch, or cycle
-  WindowCycler.swift    Accessibility window enumeration and raising
-  AppPicker.swift       NSOpenPanel over /Applications
-  KeyNames.swift        key code to glyph
-  Views/
-    ContentView.swift   menu content
-    HotkeyField.swift   shortcut recorder
-```
-
-## Signing
-
-The app is signed with a real identity rather than ad-hoc, because the
-Accessibility permission is bound to the code signature. An ad-hoc signature
-changes hash on every build, so macOS would re-prompt each time. The designated
-requirement resolves to bundle ID plus certificate, which stays stable across
-rebuilds.
-
-Override the identity if you need to:
-
-```sh
-BIFROST_SIGN_IDENTITY="Apple Development: Your Name (XXXXXXXXXX)" ./Scripts/build-app.sh
-```
-
-## Troubleshooting
-
-**The build takes minutes instead of seconds.** `swift` on your `PATH` may be an
-older standalone toolchain (swiftly, or one in `~/Library/Developer/Toolchains`).
-An old compiler parsing a much newer system SwiftUI module is pathologically
-slow. `Scripts/build-app.sh` pins Xcode's toolchain to avoid this; to do it by
-hand:
-
-```sh
-xcrun --toolchain com.apple.dt.toolchain.XcodeDefault swift build -c release
-```
-
-Compare `swift --version` against `xcrun swift --version` to spot the mismatch.
+- [How it works](docs/how-it-works.md) — architecture and the APIs behind it
+- [Building](docs/building.md) — toolchain, signing, troubleshooting
