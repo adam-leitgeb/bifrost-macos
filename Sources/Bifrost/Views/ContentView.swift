@@ -3,6 +3,9 @@ import SwiftUI
 struct ContentView: View {
     @Environment(AppStore.self) private var store
     @State private var conflictMessage: String?
+    @State private var listHeight: CGFloat = 0
+
+    private static let maxListHeight: CGFloat = 340
 
     var body: some View {
         VStack(spacing: 0) {
@@ -76,9 +79,22 @@ struct ContentView: View {
                 }
             }
             .padding(.vertical, 4)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: ListHeightKey.self, value: proxy.size.height)
+                }
+            )
         }
-        .frame(maxHeight: 340)
+        // A ScrollView has no ideal height of its own. The menu bar window
+        // sizes itself to fit its content, so without a definite height here
+        // the list collapses to zero and the rows are clipped away entirely.
+        // Measure the rows and pin the scroll view to that, capped so that
+        // long lists scroll instead of growing without bound.
+        .frame(height: min(max(listHeight, 1), Self.maxListHeight))
         .scrollBounceBehavior(.basedOnSize)
+        .onPreferenceChange(ListHeightKey.self) { height in
+            Task { @MainActor in listHeight = height }
+        }
     }
 
     private var footer: some View {
@@ -150,5 +166,14 @@ private struct EntryRow: View {
         .padding(.vertical, 5)
         .background(isHovering ? Color.primary.opacity(0.06) : .clear)
         .onHover { isHovering = $0 }
+    }
+}
+
+/// Carries the measured height of the entry rows up to the scroll view.
+private struct ListHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
