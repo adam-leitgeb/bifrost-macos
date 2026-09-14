@@ -48,7 +48,7 @@ enum WindowCycler {
     /// Only the fallback keeps state; the Window menu already knows which
     /// window is current.
     static func beginCycle(for app: NSRunningApplication, bundleIdentifier: String) {
-        guard windowMenuEntries(of: app).count < 2 else { return }
+        guard windowMenuEntries(of: app).isEmpty else { return }
         let windows = cyclableWindows(of: app)
         fallbackCycles[bundleIdentifier] = windows.isEmpty ? nil : (windows, 0)
     }
@@ -58,7 +58,7 @@ enum WindowCycler {
     @discardableResult
     static func advance(for app: NSRunningApplication, bundleIdentifier: String) -> Bool {
         let entries = windowMenuEntries(of: app)
-        guard entries.count > 1 else {
+        guard !entries.isEmpty else {
             return fallbackAdvance(for: app, bundleIdentifier: bundleIdentifier)
         }
 
@@ -100,36 +100,33 @@ enum WindowCycler {
         return nil
     }
 
-    /// The window entries at the end of a menu.
-    ///
-    /// Most apps list every window in one block, so the last group is the whole
-    /// list. Xcode instead groups windows by project, one per group, so a
-    /// single trailing entry is not necessarily the whole list — earlier groups
-    /// are pulled in while they hold exactly one item each. A command block
-    /// like "Bring All to Front" / "Arrange in Front" holds several, which is
-    /// what stops the walk before it swallows commands as if they were windows.
+    /// Position alone can't find the entries: Xcode splits its windows into
+    /// one separator-delimited group per project, and commands such as "Bring
+    /// All to Front" can sit alone in a group just like a window. What sets
+    /// windows apart is that they share one action, the one behind the
+    /// checkmarked front window. Items without an identifier fall back to the
+    /// front window's group.
     private static func windowEntries(of menu: AXUIElement) -> [AXUIElement] {
-        var groups = separatedGroups(of: menu)
-        guard var collected = groups.popLast() else { return [] }
+        let items = children(of: menu)
+        let candidates = items.lastIndex(where: isWindowListAnchor).map { Array(items[($0 + 1)...]) } ?? items
 
-        while collected.count < 2, let previous = groups.last, previous.count == 1 {
-            collected = previous + collected
-            groups.removeLast()
+        let checkmarked = candidates.filter(isCheckmarked)
+        guard checkmarked.count == 1, let front = checkmarked.first else { return [] }
+
+        let entries: [AXUIElement]
+        if let action = identifier(of: front) {
+            entries = candidates.filter { identifier(of: $0) == action }
+        } else {
+            entries = separatedGroups(of: candidates).first { $0.contains { CFEqual($0, front) } } ?? []
         }
-
-        // Exactly one entry is checkmarked: the window in front.
-        guard collected.count > 1,
-              collected.filter(isCheckmarked).count == 1
-        else { return [] }
-        return collected
+        return entries.count > 1 ? entries : []
     }
 
-    /// The menu's items split into separator-delimited groups, empties dropped.
-    private static func separatedGroups(of menu: AXUIElement) -> [[AXUIElement]] {
+    private static func separatedGroups(of items: [AXUIElement]) -> [[AXUIElement]] {
         var groups: [[AXUIElement]] = []
         var current: [AXUIElement] = []
 
-        for item in children(of: menu) {
+        for item in items {
             if isSeparator(item) {
                 if !current.isEmpty { groups.append(current) }
                 current = []

@@ -51,10 +51,13 @@ Finding the list is the fiddly part:
   language-independent identifiers and key equivalents, and no other menu is
   ever considered.
 - **Xcode groups windows by project**, one per separator-delimited group, so the
-  last group is not always the whole list. Earlier groups are pulled in while
-  they hold exactly one item each; a command block like "Bring All to Front" /
-  "Arrange in Front" holds several, which stops the walk before it mistakes a
-  command for a window.
+  last group is not always the whole list — and a command like "Bring All to
+  Front" can sit alone in a group just like a window. Position can't tell them
+  apart, but the menu items' actions can: every window entry shares the action
+  behind the checkmarked front window, which no command does. So the entries
+  are the items after "Bring All to Front" that share that action.
+- Only the **checkmark** marks the front window. The same column shows ◆ for a
+  minimized window and • for one with unsaved changes or a running process.
 
 Apps without a usable Window menu fall back to cycling the windows on the
 current desktop, where **only standard windows take part** — panels, sheets and
