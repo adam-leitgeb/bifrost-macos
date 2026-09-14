@@ -26,14 +26,38 @@ Nothing else can enumerate or raise another app's individual windows.
 synthesizing ⌘\` is itself gated behind the same permission. So cycling is
 opt-in per app, and the rest of Bifrost stays permission-free.
 
-Two details worth knowing:
+## Reaching other desktops
 
-- **Rotation order is captured once**, when cycling starts, and compared against
-  the live window list as a set. Raising a window reorders that list, so
-  stepping through it by index would bounce between the front two windows.
-- **Only standard windows take part.** Panels, sheets and inspectors are
-  filtered out by subrole, and minimized windows are skipped rather than
-  restored.
+The accessibility API only lists windows on the desktop currently showing, so
+it cannot see — let alone raise — a window parked on another one.
+
+Bifrost goes through the app's own **Window menu** instead. It lists every
+window wherever it lives, marks the one in front with a checkmark, and choosing
+an entry makes macOS switch desktops itself. Nothing has to track where the
+rotation is, because the checkmark already says.
+
+The alternative was switching desktops directly through the private
+`CGSManagedDisplaySetCurrentSpace`. It works, but it changes the current Space
+behind Dock's back, and Dock owns Mission Control's state — so Exposé is left
+drawing from a stale model and renders incorrectly. Driving the menu keeps
+every part of the system in agreement, and needs no private calls at all.
+
+Finding the list is the fiddly part:
+
+- Other menus share its shape. Brave's **Tab** menu is also a trailing list with
+  the active entry checkmarked, and cycling tabs instead of windows would be
+  quietly wrong. The conventional title is tried first, then menus are searched
+  right to left, since the window list sits near the end of the menu bar.
+- **Xcode groups windows by project**, one per separator-delimited group, so the
+  last group is not always the whole list. Earlier groups are pulled in while
+  they hold exactly one item each; a command block like "Bring All to Front" /
+  "Arrange in Front" holds several, which stops the walk before it mistakes a
+  command for a window.
+
+Apps without a usable Window menu fall back to cycling the windows on the
+current desktop, where **only standard windows take part** — panels, sheets and
+inspectors are filtered out by subrole, and minimized windows are skipped rather
+than restored.
 
 ## Layout
 
@@ -44,7 +68,7 @@ Sources/Bifrost/
   AppStore.swift        list, persistence, hotkey sync
   HotKeyManager.swift   Carbon registration and dispatch
   Launcher.swift        activate, launch, or cycle
-  WindowCycler.swift    Accessibility window enumeration and raising
+  WindowCycler.swift    window menu cycling, with an accessibility fallback
   AppPicker.swift       NSOpenPanel over /Applications
   KeyNames.swift        key code to glyph
   Views/
