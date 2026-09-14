@@ -13,14 +13,14 @@ enum Launcher {
 
         guard let running else {
             WindowCycler.forget(bundleIdentifier: entry.bundleIdentifier)
-            launch(entry)
+            open(entry.url)
             return
         }
 
         // Bifrost is an accessory app and never steals focus, so `isActive`
         // still reflects whichever app the user was actually working in.
-        if entry.cyclesWindows, running.isActive, WindowCycler.isTrusted {
-            WindowCycler.advance(for: running, bundleIdentifier: entry.bundleIdentifier)
+        if entry.cyclesWindows, running.isActive, WindowCycler.isTrusted,
+           WindowCycler.advance(for: running, bundleIdentifier: entry.bundleIdentifier) {
             return
         }
 
@@ -28,6 +28,14 @@ enum Launcher {
         // claim, otherwise our request is deferred until the user clicks.
         NSApp.yieldActivation(to: running)
         running.activate()
+
+        // Activating a process never asks it to show a window, so apps that
+        // keep running with every window closed — Signal and LM Studio among
+        // them — would come forward with nothing on screen. Reopen, as a Dock
+        // click does. It goes out unconditionally: Bifrost can only see
+        // windows on the current desktop, but AppKit tells the app about its
+        // windows on every desktop, and an app that has some ignores it.
+        open(running.bundleURL ?? entry.url)
 
         if entry.cyclesWindows, WindowCycler.isTrusted {
             // Pin the rotation to the window that is now in front, so the next
@@ -37,15 +45,15 @@ enum Launcher {
     }
 
     @MainActor
-    private static func launch(_ entry: AppEntry) {
-        guard entry.existsOnDisk else {
+    private static func open(_ url: URL) {
+        guard FileManager.default.fileExists(atPath: url.path) else {
             NSSound.beep()
             return
         }
 
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
-        NSWorkspace.shared.openApplication(at: entry.url, configuration: configuration) { _, error in
+        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, error in
             if error != nil { NSSound.beep() }
         }
     }

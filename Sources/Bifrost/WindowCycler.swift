@@ -1,27 +1,30 @@
-import ApplicationServices
 import AppKit
+import ApplicationServices
+import Foundation
 
-/// Cycles through an app's windows on repeated hotkey presses.
+/// Cycles through an app's windows on repeated hotkey presses, including
+/// windows on other desktops.
+///
+/// Reaching another desktop is the hard part. The accessibility API only lists
+/// windows on the desktop currently showing, and switching desktops behind
+/// macOS's back leaves Mission Control drawing from a stale model. So this goes
+/// through the app's own Window menu instead: it lists every window wherever it
+/// lives, marks the active one with a checkmark, and picking an entry makes
+/// macOS switch desktops itself, properly.
+///
+/// Apps without a usable Window menu fall back to cycling the windows on the
+/// current desktop.
 ///
 /// This is the one feature that needs the Accessibility permission: there is
 /// no way to enumerate or raise another app's individual windows without it.
 /// It is opt-in per app so the rest of Bifrost stays permission-free.
 @MainActor
 enum WindowCycler {
-    /// Where we are in one app's window rotation.
-    private struct Cycle {
-        /// Captured when the rotation starts. Deliberately *not* refreshed on
-        /// every press: raising a window reorders the live list, so stepping
-        /// through that would ping-pong between the front two windows forever.
-        var windows: [AXUIElement]
-        var index: Int
-    }
-
-    private static var cycles: [String: Cycle] = [:]
-
     /// Accessibility calls are synchronous IPC into the target app; without a
     /// timeout a beachballing app would hang our hotkey handler.
     private static let messagingTimeout: Float = 0.5
+
+    private static var fallbackCycles: [String: (windows: [AXUIElement], index: Int)] = [:]
 
     // MARK: - Permission
 
@@ -46,70 +49,163 @@ enum WindowCycler {
 
     // MARK: - Cycling
 
-    /// Starts a fresh rotation, pinned to the app's current front window.
+    /// Only the fallback keeps state; the Window menu already knows which
+    /// window is current.
     static func beginCycle(for app: NSRunningApplication, bundleIdentifier: String) {
-        let windows = standardWindows(of: app)
-        guard !windows.isEmpty else {
-            cycles[bundleIdentifier] = nil
-            return
-        }
-        cycles[bundleIdentifier] = Cycle(windows: windows, index: 0)
+        guard windowMenuEntries(of: app).isEmpty else { return }
+        let windows = cyclableWindows(of: app)
+        fallbackCycles[bundleIdentifier] = windows.isEmpty ? nil : (windows, 0)
     }
 
-    /// Raises the next window in the rotation. Returns false when there is
-    /// nothing to cycle (one window, or Accessibility not granted).
+    /// Returns false when there is nothing to cycle through.
     @discardableResult
     static func advance(for app: NSRunningApplication, bundleIdentifier: String) -> Bool {
-        let live = standardWindows(of: app)
-        guard live.count > 1 else {
-            cycles[bundleIdentifier] = nil
-            return false
+        let entries = windowMenuEntries(of: app)
+        guard !entries.isEmpty else {
+            return fallbackAdvance(for: app, bundleIdentifier: bundleIdentifier)
         }
 
-        var cycle: Cycle
-        if let stored = cycles[bundleIdentifier], sameWindows(stored.windows, live) {
-            cycle = stored
-        } else {
-            // Windows opened or closed since the rotation started, so the
-            // remembered order is stale.
-            cycle = Cycle(windows: live, index: 0)
-        }
-
-        cycle.index = (cycle.index + 1) % cycle.windows.count
-        let target = cycle.windows[cycle.index]
-        cycles[bundleIdentifier] = cycle
-
-        AXUIElementPerformAction(target, kAXRaiseAction as CFString)
+        // The checkmark marks the window in front, so there is no rotation
+        // state to keep and nothing that can drift out of step.
+        let current = entries.firstIndex(where: isCheckmarked) ?? 0
+        let target = entries[(current + 1) % entries.count]
+        AXUIElementPerformAction(target, kAXPressAction as CFString)
         return true
     }
 
     static func forget(bundleIdentifier: String) {
-        cycles[bundleIdentifier] = nil
+        fallbackCycles[bundleIdentifier] = nil
     }
 
-    // MARK: - Window inspection
+    // MARK: - Window menu
 
-    private static func standardWindows(of app: NSRunningApplication) -> [AXUIElement] {
-        let appElement = AXUIElementCreateApplication(app.processIdentifier)
-        AXUIElementSetMessagingTimeout(appElement, messagingTimeout)
+    private static func windowMenuEntries(of app: NSRunningApplication) -> [AXUIElement] {
+        let element = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(element, messagingTimeout)
 
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute as CFString, &value) == .success,
-              let windows = value as? [AXUIElement]
+        guard let menuBar = elementAttribute(element, kAXMenuBarAttribute),
+              let windowMenu = windowMenu(in: menuBar)
         else { return [] }
-
-        return windows.filter(isCyclable)
+        return windowEntries(of: windowMenu)
     }
 
-    /// Skips panels, sheets and inspectors — Xcode in particular reports a lot
-    /// of those — and skips minimized windows, since un-minimizing something
-    /// the user explicitly put away mid-cycle is more surprising than helpful.
-    private static func isCyclable(_ window: AXUIElement) -> Bool {
-        if boolValue(window, kAXMinimizedAttribute) == true { return false }
-        if let subrole = stringValue(window, kAXSubroleAttribute) {
-            return subrole == kAXStandardWindowSubrole
+    /// Other menus can pass for a window list — Brave's Tab menu lists tabs
+    /// with the active one checkmarked, and Finder's View menu checkmarks its
+    /// view mode — so the Window menu is recognised by the commands only it
+    /// carries, not by shape. Its title is localised, so not by that either.
+    private static func windowMenu(in menuBar: AXUIElement) -> AXUIElement? {
+        for menuBarItem in children(of: menuBar).reversed() {
+            guard let menu = children(of: menuBarItem).first else { continue }
+            if children(of: menu).contains(where: { isWindowListAnchor($0) || isMinimize($0) }) {
+                return menu
+            }
         }
-        return stringValue(window, kAXRoleAttribute) == kAXWindowRole
+        return nil
+    }
+
+    /// Position alone can't find the entries: Xcode splits its windows into
+    /// one separator-delimited group per project, and commands such as "Bring
+    /// All to Front" can sit alone in a group just like a window. What sets
+    /// windows apart is that they share one action, the one behind the
+    /// checkmarked front window. Items without an identifier fall back to the
+    /// front window's group.
+    private static func windowEntries(of menu: AXUIElement) -> [AXUIElement] {
+        let items = children(of: menu)
+        let candidates = items.lastIndex(where: isWindowListAnchor).map { Array(items[($0 + 1)...]) } ?? items
+
+        let checkmarked = candidates.filter(isCheckmarked)
+        guard checkmarked.count == 1, let front = checkmarked.first else { return [] }
+
+        let entries: [AXUIElement]
+        if let action = identifier(of: front) {
+            entries = candidates.filter { identifier(of: $0) == action }
+        } else {
+            entries = separatedGroups(of: candidates).first { $0.contains { CFEqual($0, front) } } ?? []
+        }
+        return entries.count > 1 ? entries : []
+    }
+
+    private static func separatedGroups(of items: [AXUIElement]) -> [[AXUIElement]] {
+        var groups: [[AXUIElement]] = []
+        var current: [AXUIElement] = []
+
+        for item in items {
+            if isSeparator(item) {
+                if !current.isEmpty { groups.append(current) }
+                current = []
+            } else {
+                current.append(item)
+            }
+        }
+        if !current.isEmpty { groups.append(current) }
+        return groups
+    }
+
+    /// Separators carry no title.
+    private static func isSeparator(_ element: AXUIElement) -> Bool {
+        title(of: element)?.isEmpty ?? true
+    }
+
+    /// AppKit appends the window list after "Bring All to Front" and its
+    /// "Arrange in Front" alternate. Identifiers are selector names, so they
+    /// hold in every language.
+    private static func isWindowListAnchor(_ element: AXUIElement) -> Bool {
+        guard let identifier = identifier(of: element) else { return false }
+        return identifier == "arrangeInFront" || identifier == "alternateArrangeInFront"
+    }
+
+    private static func isMinimize(_ element: AXUIElement) -> Bool {
+        let commandAlone = 0
+        return attribute(element, kAXMenuItemCmdCharAttribute) as? String == "M"
+            && attribute(element, kAXMenuItemCmdModifiersAttribute) as? Int == commandAlone
+    }
+
+    /// Other marks share the column: ◆ for a minimized window, • for one with
+    /// unsaved changes or a running process.
+    private static func isCheckmarked(_ element: AXUIElement) -> Bool {
+        attribute(element, "AXMenuItemMarkChar") as? String == "✓"
+    }
+
+    // MARK: - Fallback: windows on the current desktop
+
+    private static func fallbackAdvance(for app: NSRunningApplication, bundleIdentifier: String) -> Bool {
+        let live = cyclableWindows(of: app)
+        guard live.count > 1 else {
+            fallbackCycles[bundleIdentifier] = nil
+            return false
+        }
+
+        var cycle: (windows: [AXUIElement], index: Int)
+        if let stored = fallbackCycles[bundleIdentifier], sameWindows(stored.windows, live) {
+            cycle = stored
+        } else {
+            // Raising a window reorders the live list, so the order is captured
+            // once and rebuilt only when windows actually open or close.
+            cycle = (live, 0)
+        }
+
+        cycle.index = (cycle.index + 1) % cycle.windows.count
+        fallbackCycles[bundleIdentifier] = cycle
+
+        AXUIElementPerformAction(cycle.windows[cycle.index], kAXRaiseAction as CFString)
+        return true
+    }
+
+    /// Skips panels, sheets and inspectors — Xcode reports a lot of those — and
+    /// skips minimized windows, since un-minimizing something the user put away
+    /// mid-cycle is more surprising than helpful.
+    private static func cyclableWindows(of app: NSRunningApplication) -> [AXUIElement] {
+        let element = AXUIElementCreateApplication(app.processIdentifier)
+        AXUIElementSetMessagingTimeout(element, messagingTimeout)
+
+        guard let windows = attribute(element, kAXWindowsAttribute) as? [AXUIElement] else { return [] }
+        return windows.filter { window in
+            if attribute(window, kAXMinimizedAttribute) as? Bool == true { return false }
+            if let subrole = attribute(window, kAXSubroleAttribute) as? String {
+                return subrole == kAXStandardWindowSubrole
+            }
+            return attribute(window, kAXRoleAttribute) as? String == kAXWindowRole
+        }
     }
 
     private static func sameWindows(_ lhs: [AXUIElement], _ rhs: [AXUIElement]) -> Bool {
@@ -120,15 +216,33 @@ enum WindowCycler {
         return true
     }
 
-    private static func stringValue(_ element: AXUIElement, _ attribute: String) -> String? {
+    // MARK: - Accessibility helpers
+
+    private static func attribute(_ element: AXUIElement, _ name: String) -> Any? {
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else { return nil }
-        return value as? String
+        guard AXUIElementCopyAttributeValue(element, name as CFString, &value) == .success else { return nil }
+        return value
     }
 
-    private static func boolValue(_ element: AXUIElement, _ attribute: String) -> Bool? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(element, attribute as CFString, &value) == .success else { return nil }
-        return value as? Bool
+    /// A conditional cast to a CoreFoundation type always succeeds, so the
+    /// type has to be checked explicitly.
+    private static func elementAttribute(_ element: AXUIElement, _ name: String) -> AXUIElement? {
+        guard let value = attribute(element, name) else { return nil }
+        let raw = value as CFTypeRef
+        guard CFGetTypeID(raw) == AXUIElementGetTypeID() else { return nil }
+        return (raw as! AXUIElement)
+    }
+
+    private static func children(of element: AXUIElement) -> [AXUIElement] {
+        attribute(element, kAXChildrenAttribute) as? [AXUIElement] ?? []
+    }
+
+    private static func title(of element: AXUIElement) -> String? {
+        attribute(element, kAXTitleAttribute) as? String
+    }
+
+    private static func identifier(of element: AXUIElement) -> String? {
+        guard let identifier = attribute(element, kAXIdentifierAttribute) as? String, !identifier.isEmpty else { return nil }
+        return identifier
     }
 }

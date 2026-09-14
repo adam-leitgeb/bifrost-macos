@@ -3,3 +3,10 @@
 build/
 *.xcuserdatad
 .swiftpm/
+
+# Synced from the central skills repo by `make update_skills`
+.claude/
+.cursor/
+
+# Local scratch: handoff notes, debugging output
+temp/
