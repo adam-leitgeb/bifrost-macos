@@ -10,3 +10,13 @@ build/
 
 # Local scratch: handoff notes, debugging output
 temp/
+
+# Signing material: CSR, certificate, exported .p12. Never committed.
+signing/*
+!signing/README.md
+
+# Belt and braces, anywhere in the tree
+*.p12
+*.cer
+*.certSigningRequest
+*.p8

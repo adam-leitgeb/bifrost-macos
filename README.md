@@ -28,7 +28,13 @@ it isn't, and can step through its windows if you press again.
 
 ## Install
 
-Requires macOS 14 or later, and Xcode to build.
+Requires macOS 14 or later.
+
+Download `Bifrost.dmg` from the [latest release](https://github.com/adam-leitgeb/bifrost-macos/releases/latest),
+open it, and drag Bifrost into Applications. Builds are signed and notarized by
+Apple, so it opens without a Gatekeeper warning.
+
+To build from source instead, with Xcode installed:
 
 ```sh
 git clone https://github.com/adam-leitgeb/bifrost-macos.git
@@ -61,6 +67,7 @@ Bifrost that needs a permission.
 
 - [How it works](docs/how-it-works.md) — architecture and the APIs behind it
 - [Building](docs/building.md) — toolchain, signing, troubleshooting
+- [Releasing](docs/releasing.md) — tagging, notarization, required secrets
 
 ## License
 
