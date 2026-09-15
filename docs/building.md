@@ -24,6 +24,19 @@ Override either for a one-off build:
 BIFROST_VERSION=1.2.3 BIFROST_BUILD_NUMBER=99 ./Scripts/build-app.sh
 ```
 
+## Icon
+
+`Scripts/make-icon.sh` regenerates `Resources/AppIcon.icns` from
+`Resources/AppIcon.png`. Run it after changing the artwork; the `.icns` is
+committed, so an ordinary build does not need it.
+
+The script centres the artwork in an 824pt superellipse on a 1024pt canvas,
+which is Apple's grid for macOS icons — that is what makes the shape sit
+correctly beside other apps rather than filling its tile edge to edge.
+
+The menu bar uses the `rainbow` SF Symbol rather than this artwork. Symbols
+follow the menu bar's appearance automatically and stay legible at 18pt.
+
 ## Signing
 
 The app is signed with a real identity rather than ad-hoc, because the
