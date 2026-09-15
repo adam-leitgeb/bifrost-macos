@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/hero.png" width="720" alt="The Bifrost menu, listing apps with their shortcuts">
+  <img src="docs/assets/menu.png" width="720" alt="The Bifrost menu, listing apps with their shortcuts">
 </p>
 
 <h1 align="center">Bifrost</h1>
