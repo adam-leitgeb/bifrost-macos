@@ -13,10 +13,11 @@ struct ContentView: View {
             header
             Divider()
 
-            if store.entries.isEmpty {
+            entryList
+
+            if !hasAddedApps {
+                Divider()
                 emptyState
-            } else {
-                entryList
             }
 
             if let conflictMessage {
@@ -36,6 +37,10 @@ struct ContentView: View {
         .onAppear { isTrusted = WindowCycler.isTrusted }
     }
 
+    private var hasAddedApps: Bool {
+        store.entries.contains(where: \.isRemovable)
+    }
+
     private var needsAccessibility: Bool {
         !isTrusted && store.cyclesWindows
     }
@@ -47,7 +52,7 @@ struct ContentView: View {
             Text("Bifrost")
                 .font(.headline)
             Spacer()
-            Text(store.entries.isEmpty ? "" : "\(store.entries.count)")
+            Text("\(store.entries.count)")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -60,10 +65,10 @@ struct ContentView: View {
             Image(systemName: "square.grid.2x2")
                 .font(.system(size: 24))
                 .foregroundStyle(.tertiary)
-            Text("No apps yet")
+            Text("Add your apps")
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Text("Add an app, then click Record to assign a shortcut.")
+            Text("Click Add App…, then Record to assign a shortcut.")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
@@ -228,7 +233,8 @@ private struct EntryRow: View {
                     .foregroundStyle(.tertiary)
             }
             .buttonStyle(.plain)
-            .opacity(isHovering ? 1 : 0)
+            .opacity(isHovering && entry.isRemovable ? 1 : 0)
+            .disabled(!entry.isRemovable)
             .help("Remove \(entry.name)")
         }
         .padding(.horizontal, 12)

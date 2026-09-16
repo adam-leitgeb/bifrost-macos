@@ -49,6 +49,8 @@ open build/Bifrost.app
 2. **Add App…**, then pick one or more apps
 3. Click **Record** and press your combination
 
+Finder is always in the list, so it can get a shortcut without being added.
+
 Shortcuts apply immediately and come back on the next launch. Escape cancels a
 recording, Delete clears a shortcut. Every shortcut needs at least one of
 ⌘ ⌥ ⌃, so ordinary typing is never captured.

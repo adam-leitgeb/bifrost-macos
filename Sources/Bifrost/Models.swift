@@ -100,6 +100,18 @@ struct AppEntry: Codable, Identifiable, Equatable {
         return NSWorkspace.shared.icon(forFile: path)
     }
 
+    /// Finder lives in CoreServices, outside anywhere the app picker points, so
+    /// the store keeps it in the list permanently instead.
+    static let finderBundleIdentifier = "com.apple.finder"
+
+    var isRemovable: Bool { bundleIdentifier != Self.finderBundleIdentifier }
+
+    static var finder: AppEntry? {
+        let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: finderBundleIdentifier)
+            ?? URL(fileURLWithPath: "/System/Library/CoreServices/Finder.app")
+        return AppEntry(url: url)
+    }
+
     init?(url: URL) {
         guard let bundle = Bundle(url: url), let identifier = bundle.bundleIdentifier else {
             return nil
