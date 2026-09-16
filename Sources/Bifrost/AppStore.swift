@@ -44,11 +44,15 @@ final class AppStore {
             return
         }
 
-        entries.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        sortEntries()
         persist()
     }
 
     func remove(_ entry: AppEntry) {
+        guard entry.isRemovable else {
+            return
+        }
+
         entries.removeAll { $0.id == entry.id }
         WindowCycler.forget(bundleIdentifier: entry.bundleIdentifier)
         persist()
@@ -91,6 +95,26 @@ final class AppStore {
         )
     }
 
+    // MARK: - Ordering
+
+    private func sortEntries() {
+        entries.sort { lhs, rhs in
+            if lhs.isRemovable != rhs.isRemovable {
+                return !lhs.isRemovable
+            }
+
+            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+        }
+    }
+
+    private func insertFinderIfMissing() {
+        guard !entries.contains(where: { !$0.isRemovable }), let finder = AppEntry.finder else {
+            return
+        }
+
+        entries.append(finder)
+    }
+
     // MARK: - Persistence
 
     private func persist() {
@@ -109,6 +133,11 @@ final class AppStore {
     }
 
     private func load() {
+        defer {
+            insertFinderIfMissing()
+            sortEntries()
+        }
+
         guard let data = try? Data(contentsOf: fileURL) else {
             return
         }
