@@ -52,8 +52,9 @@ open build/Bifrost.app
 Finder is always in the list, so it can get a shortcut without being added.
 
 Shortcuts apply immediately and come back on the next launch. Escape cancels a
-recording, Delete clears a shortcut. Every shortcut needs at least one of
-⌘ ⌥ ⌃, so ordinary typing is never captured.
+recording, Delete clears a shortcut. Hovering a row shows a button that clears its
+shortcut, then turns into a trash button that removes the app. Every shortcut
+needs at least one of ⌘ ⌥ ⌃, so ordinary typing is never captured.
 
 ### Window cycling
 

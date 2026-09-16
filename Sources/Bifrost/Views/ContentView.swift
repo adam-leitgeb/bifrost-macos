@@ -84,6 +84,8 @@ struct ContentView: View {
                 ForEach(store.entries) { entry in
                     EntryRow(entry: entry) { hotkey in
                         assign(hotkey, to: entry)
+                    } onClear: {
+                        assign(nil, to: entry)
                     } onRemove: {
                         store.remove(entry)
                     }
@@ -198,14 +200,16 @@ struct ContentView: View {
     }
 }
 
-/// One row: icon, name, shortcut recorder, and a remove button that appears on
-/// hover.
+/// One row: icon, name, shortcut recorder, and a hover button that clears the
+/// shortcut, or removes the app once there is no shortcut left to clear.
 private struct EntryRow: View {
     let entry: AppEntry
     let onHotkeyChange: (Hotkey?) -> Void
+    let onClear: () -> Void
     let onRemove: () -> Void
 
     @State private var isHovering = false
+    @State private var isRemovalArmed = true
 
     var body: some View {
         HStack(spacing: 8) {
@@ -228,19 +232,55 @@ private struct EntryRow: View {
 
             HotkeyField(hotkey: entry.hotkey, onChange: onHotkeyChange)
 
-            Button(action: onRemove) {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.tertiary)
-            }
-            .buttonStyle(.plain)
-            .opacity(isHovering && entry.isRemovable ? 1 : 0)
-            .disabled(!entry.isRemovable)
-            .help("Remove \(entry.name)")
+            trailingButton
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 5)
         .background(isHovering ? Color.primary.opacity(0.06) : .clear)
-        .onHover { isHovering = $0 }
+        .onHover(perform: didHover)
+    }
+
+    @ViewBuilder
+    private var trailingButton: some View {
+        if entry.hotkey != nil {
+            Button(action: didTapClear) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.tertiary)
+            }
+            .buttonStyle(.plain)
+            .opacity(isHovering ? 1 : 0)
+            .help("Clear shortcut for \(entry.name)")
+        } else {
+            Button(action: onRemove) {
+                Image(systemName: "trash.circle.fill")
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.plain)
+            .opacity(isHovering && canRemove ? 1 : 0)
+            .disabled(!canRemove)
+            .help("Remove \(entry.name)")
+        }
+    }
+
+    private var canRemove: Bool {
+        entry.isRemovable && isRemovalArmed
+    }
+
+    // MARK: - Actions
+
+    private func didHover(_ hovering: Bool) {
+        isHovering = hovering
+
+        if !hovering {
+            isRemovalArmed = true
+        }
+    }
+
+    // The trash button appears in the clear button's place, so a double-click
+    // meant to clear would otherwise remove the app too.
+    private func didTapClear() {
+        isRemovalArmed = false
+        onClear()
     }
 }
 
