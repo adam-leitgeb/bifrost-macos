@@ -9,7 +9,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/macOS-14%2B-black" alt="macOS 14+">
   <img src="https://img.shields.io/badge/Swift-6-orange" alt="Swift 6">
-  <img src="https://img.shields.io/badge/dependencies-none-brightgreen" alt="No dependencies">
+  <img src="https://img.shields.io/badge/dependencies-Sparkle-brightgreen" alt="One dependency: Sparkle">
 </p>
 
 ---
@@ -24,7 +24,8 @@ it isn't, and can step through its windows if you press again.
 - **Window cycling** — press again to move through an app's windows
 - **Out of the way** — menu bar only, no Dock icon, no main window
 - **No permission for shortcuts** — only the optional window cycling asks for Accessibility
-- **No dependencies** — system frameworks only
+- **Updates itself** — notices new releases and installs them in place, keeping your shortcuts and permissions
+- **One dependency** — [Sparkle](https://sparkle-project.org), for updates; everything else is system frameworks
 
 ## Install
 
@@ -33,6 +34,9 @@ Requires macOS 14 or later.
 Download `Bifrost.dmg` from the [latest release](https://github.com/adam-leitgeb/bifrost-macos/releases/latest),
 open it, and drag Bifrost into Applications. Builds are signed and notarized by
 Apple, so it opens without a Gatekeeper warning.
+
+From then on Bifrost checks for new releases itself and offers them in its
+menu. Automatic checking can be turned off there.
 
 To build from source instead, with Xcode installed:
 

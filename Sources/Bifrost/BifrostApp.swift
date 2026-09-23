@@ -5,11 +5,13 @@ import SwiftUI
 struct BifrostApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var store = AppStore.shared
+    @State private var updater = Updater.shared
 
     var body: some Scene {
         MenuBarExtra("Bifrost", systemImage: "rainbow") {
             ContentView()
                 .environment(store)
+                .environment(updater)
         }
         .menuBarExtraStyle(.window)
     }

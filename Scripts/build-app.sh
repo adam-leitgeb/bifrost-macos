@@ -19,7 +19,8 @@ export TOOLCHAINS="${TOOLCHAINS:-com.apple.dt.toolchain.XcodeDefault}"
 SWIFT=(xcrun --toolchain "$TOOLCHAINS" swift)
 
 "${SWIFT[@]}" build -c "$CONFIG"
-BIN="$("${SWIFT[@]}" build -c "$CONFIG" --show-bin-path)/Bifrost"
+BIN_DIR="$("${SWIFT[@]}" build -c "$CONFIG" --show-bin-path)"
+BIN="$BIN_DIR/Bifrost"
 
 VERSION="${BIFROST_VERSION:-$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || true)}"
 VERSION="${VERSION:-0.0.0}"
@@ -29,8 +30,19 @@ VERSION="${VERSION:-0.0.0}"
 BUILD_NUMBER="${BIFROST_BUILD_NUMBER:-$(git rev-list --count HEAD 2>/dev/null || echo 1)}"
 
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 cp "$BIN" "$APP/Contents/MacOS/Bifrost"
+install_name_tool -add_rpath @executable_path/../Frameworks "$APP/Contents/MacOS/Bifrost"
+
+# ditto, not cp: the framework's Versions/Current symlinks must survive intact
+# or its code signature no longer validates.
+SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
+ditto "$BIN_DIR/Sparkle.framework" "$SPARKLE"
+
+# Sparkle's XPC services exist only for sandboxed apps. Bifrost isn't one, and
+# every nested bundle left in is one more thing to sign and notarize.
+rm -rf "$SPARKLE/XPCServices" "$SPARKLE/Versions/B/XPCServices"
+
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
@@ -72,6 +84,9 @@ if [ -z "$IDENTITY" ]; then
     echo "warning: no signing identity found; falling back to ad-hoc."
     echo "         Accessibility permission will need re-granting after each build."
     echo "         Set BIFROST_SIGN_IDENTITY to choose an identity."
+    codesign --force --sign - "$SPARKLE/Versions/B/Autoupdate"
+    codesign --force --sign - "$SPARKLE/Versions/B/Updater.app"
+    codesign --force --sign - "$SPARKLE"
     codesign --force --sign - "$APP"
 else
     # Notarization requires a secure timestamp, so Developer ID builds must
@@ -83,7 +98,17 @@ else
         "Developer ID Application"*) TIMESTAMP=(--timestamp) ;;
     esac
 
-    codesign --force --options runtime "${TIMESTAMP[@]}" --sign "$IDENTITY" "$APP"
+    # Inside out, and never --deep: each nested executable needs its own
+    # hardened-runtime signature before the bundle that contains it is sealed.
+    for code in \
+        "$SPARKLE/Versions/B/Autoupdate" \
+        "$SPARKLE/Versions/B/Updater.app" \
+        "$SPARKLE" \
+        "$APP"
+    do
+        codesign --force --options runtime "${TIMESTAMP[@]}" --sign "$IDENTITY" "$code"
+    done
+
     echo "Signed as: $IDENTITY"
 fi
 

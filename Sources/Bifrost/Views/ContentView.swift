@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AppStore.self) private var store
+    @Environment(Updater.self) private var updater
     @State private var conflictMessage: String?
     @State private var listHeight: CGFloat = 0
 
@@ -143,12 +144,18 @@ struct ContentView: View {
                 .padding(.vertical, 8)
 
             Divider()
+            UpdatesSection()
+            Divider()
 
             HStack {
                 Button("Add App…") {
                     AppPicker.present { urls in store.add(urls: urls) }
                 }
                 Spacer()
+                Button("Check for Updates…") {
+                    updater.checkForUpdates()
+                }
+                .disabled(!updater.canCheckForUpdates)
                 Button("Quit") {
                     NSApplication.shared.terminate(nil)
                 }
