@@ -125,3 +125,62 @@ struct AppEntry: Codable, Identifiable, Equatable {
         )
     }
 }
+
+/// A half of the screen a window can be snapped to.
+enum SnapPosition: String, Codable, CodingKeyRepresentable, CaseIterable, Identifiable {
+    case left
+    case right
+    case top
+    case bottom
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .left:
+            "Left Half"
+        case .right:
+            "Right Half"
+        case .top:
+            "Top Half"
+        case .bottom:
+            "Bottom Half"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .left:
+            "rectangle.lefthalf.filled"
+        case .right:
+            "rectangle.righthalf.filled"
+        case .top:
+            "rectangle.tophalf.filled"
+        case .bottom:
+            "rectangle.bottomhalf.filled"
+        }
+    }
+
+    /// `bounds` is in top-left-origin coordinates, as the accessibility API uses.
+    func frame(in bounds: CGRect) -> CGRect {
+        let halfWidth = (bounds.width / 2).rounded(.down)
+        let halfHeight = (bounds.height / 2).rounded(.down)
+
+        switch self {
+        case .left:
+            return CGRect(x: bounds.minX, y: bounds.minY, width: halfWidth, height: bounds.height)
+        case .right:
+            return CGRect(x: bounds.minX + halfWidth, y: bounds.minY, width: bounds.width - halfWidth, height: bounds.height)
+        case .top:
+            return CGRect(x: bounds.minX, y: bounds.minY, width: bounds.width, height: halfHeight)
+        case .bottom:
+            return CGRect(x: bounds.minX, y: bounds.minY + halfHeight, width: bounds.width, height: bounds.height - halfHeight)
+        }
+    }
+}
+
+/// Whatever a hotkey can be assigned to.
+enum ShortcutOwner: Equatable {
+    case app(AppEntry.ID)
+    case snap(SnapPosition)
+}

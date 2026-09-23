@@ -22,8 +22,9 @@ it isn't, and can step through its windows if you press again.
 - **Any app, any shortcut** — add from `/Applications`, record a combination
 - **Launch or focus** — one key does both
 - **Window cycling** — press again to move through an app's windows
+- **Window snapping** — move the front window to half the screen, from any keyboard
 - **Out of the way** — menu bar only, no Dock icon, no main window
-- **No permission for shortcuts** — only the optional window cycling asks for Accessibility
+- **No permission for shortcuts** — only the optional window cycling and snapping ask for Accessibility
 - **Updates itself** — notices new releases and installs them in place, keeping your shortcuts and permissions
 - **One dependency** — [Sparkle](https://sparkle-project.org), for updates; everything else is system frameworks
 
@@ -69,6 +70,13 @@ window — handy for two browser windows, or several Xcode projects.
 macOS asks for Accessibility access the first time you switch it on. That is the
 only way to reach another app's individual windows, and it's the only part of
 Bifrost that needs a permission.
+
+### Window snapping
+
+On a MacBook keyboard, fn-⌃-arrow moves the front window to half of the screen.
+Third-party keyboards often have no fn key to press, so turn on **Snap windows
+to screen halves** below the app list and record your own shortcut for the left,
+right, top and bottom halves. Like window cycling, it needs Accessibility access.
 
 ## Docs
 

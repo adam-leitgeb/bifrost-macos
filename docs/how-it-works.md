@@ -10,6 +10,7 @@ Bifrost is a SwiftUI `MenuBarExtra` app built on system frameworks, plus Sparkle
 | Key labels | `UCKeyTranslate` against the active layout, so non-QWERTY keyboards show the right glyph |
 | Activation | `NSRunningApplication.activate()`, preceded by `NSApp.yieldActivation(to:)` for cooperative activation. It is followed by a reopen through `NSWorkspace.openApplication`, the way clicking a Dock icon does, so an app running with no windows opens one. The app decides, since only it knows about its windows on other desktops |
 | Window cycling | Accessibility API — `kAXWindowsAttribute` to enumerate, `kAXRaiseAction` to raise |
+| Window snapping | Accessibility API — `kAXFocusedWindowAttribute` of the frontmost app, then `kAXSizeAttribute` and `kAXPositionAttribute` set to half of the screen's visible frame |
 | Storage | JSON at `~/Library/Application Support/Bifrost/entries.json` |
 | Updates | Sparkle, reading `appcast.xml` from the latest GitHub release |
 
@@ -91,9 +92,12 @@ Sources/Bifrost/
   HotKeyManager.swift   Carbon registration and dispatch
   Launcher.swift        activate, launch, or cycle
   WindowCycler.swift    window menu cycling, with an accessibility fallback
+  WindowSnapper.swift   move the front window to half the screen
   AppPicker.swift       NSOpenPanel over /Applications
   KeyNames.swift        key code to glyph
   Views/
     ContentView.swift   menu content
     HotkeyField.swift   shortcut recorder
+    SettingToggle.swift  titled switch
+    WindowSnappingSection.swift  snapping toggle and shortcuts
 ```

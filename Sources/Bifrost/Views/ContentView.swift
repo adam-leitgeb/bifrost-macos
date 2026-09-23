@@ -21,6 +21,11 @@ struct ContentView: View {
                 emptyState
             }
 
+            Divider()
+            WindowSnappingSection(onToggle: setSnapsWindows) { hotkey, position in
+                assign(hotkey, to: position)
+            }
+
             if let conflictMessage {
                 Divider()
                 notice(conflictMessage, systemImage: "exclamationmark.triangle.fill")
@@ -43,7 +48,18 @@ struct ContentView: View {
     }
 
     private var needsAccessibility: Bool {
-        !isTrusted && store.cyclesWindows
+        !isTrusted && (store.cyclesWindows || store.snapsWindows)
+    }
+
+    private var accessibilityFeatures: String {
+        switch (store.cyclesWindows, store.snapsWindows) {
+        case (true, true):
+            "Window cycling and snapping need"
+        case (false, true):
+            "Window snapping needs"
+        default:
+            "Window cycling needs"
+        }
     }
 
     // MARK: - Sections
@@ -82,15 +98,14 @@ struct ContentView: View {
     private var entryList: some View {
         ScrollView {
             VStack(spacing: 0) {
-                ForEach(store.entries) { entry in
-                    EntryRow(entry: entry) { hotkey in
-                        assign(hotkey, to: entry)
-                    } onClear: {
-                        assign(nil, to: entry)
-                    } onRemove: {
-                        store.remove(entry)
-                    }
+                ForEach(store.entries.filter { !$0.isRemovable }, content: row)
+
+                if hasAddedApps {
+                    Divider()
+                        .padding(.vertical, 4)
                 }
+
+                ForEach(store.entries.filter(\.isRemovable), content: row)
             }
             .padding(.vertical, 4)
             .background(
@@ -111,11 +126,21 @@ struct ContentView: View {
         }
     }
 
+    private func row(for entry: AppEntry) -> some View {
+        EntryRow(entry: entry) { hotkey in
+            assign(hotkey, to: entry)
+        } onClear: {
+            assign(nil, to: entry)
+        } onRemove: {
+            store.remove(entry)
+        }
+    }
+
     private var accessibilityNotice: some View {
         HStack(spacing: 6) {
             Image(systemName: "lock.fill")
                 .foregroundStyle(.secondary)
-            Text("Window cycling needs Accessibility access.")
+            Text("\(accessibilityFeatures) Accessibility access.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer(minLength: 4)
@@ -168,35 +193,53 @@ struct ContentView: View {
     }
 
     private var cyclingToggle: some View {
-        Toggle(isOn: Binding(get: { store.cyclesWindows }, set: { setCyclesWindows($0) })) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Cycle windows on repeated press")
-                    .font(.system(size: 13))
-                Text("Requires Accessibility permission")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .toggleStyle(.switch)
-        .controlSize(.small)
+        SettingToggle(
+            title: "Cycle windows on repeated press",
+            subtitle: "Requires Accessibility permission",
+            isOn: store.cyclesWindows,
+            onChange: setCyclesWindows
+        )
     }
 
     // MARK: - Actions
 
     private func assign(_ hotkey: Hotkey?, to entry: AppEntry) {
-        if let hotkey, let owner = store.conflict(for: hotkey, excluding: entry) {
-            conflictMessage = "\(hotkey.displayString) is already used by \(owner.name)."
+        guard canAssign(hotkey, to: .app(entry.id)) else {
             return
         }
 
-        conflictMessage = nil
         store.setHotkey(hotkey, for: entry)
+    }
+
+    private func assign(_ hotkey: Hotkey?, to position: SnapPosition) {
+        guard canAssign(hotkey, to: .snap(position)) else {
+            return
+        }
+
+        store.setSnapHotkey(hotkey, for: position)
+    }
+
+    private func canAssign(_ hotkey: Hotkey?, to owner: ShortcutOwner) -> Bool {
+        if let hotkey, let conflict = store.conflict(for: hotkey, excluding: owner) {
+            conflictMessage = "\(hotkey.displayString) is already used by \(conflict)."
+            return false
+        }
+
+        conflictMessage = nil
+        return true
     }
 
     private func setCyclesWindows(_ enabled: Bool) {
         store.setCyclesWindows(enabled)
+        requestTrustIfNeeded(enabled)
+    }
 
+    private func setSnapsWindows(_ enabled: Bool) {
+        store.setSnapsWindows(enabled)
+        requestTrustIfNeeded(enabled)
+    }
+
+    private func requestTrustIfNeeded(_ enabled: Bool) {
         // Ask for the permission at the moment it first becomes relevant,
         // rather than on launch.
         if enabled && !WindowCycler.isTrusted {
