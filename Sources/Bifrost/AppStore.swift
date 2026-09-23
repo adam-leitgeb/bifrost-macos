@@ -12,7 +12,13 @@ final class AppStore {
 
     private(set) var cyclesWindows = UserDefaults.standard.bool(forKey: cyclesWindowsKey)
 
+    private(set) var snapsWindows = UserDefaults.standard.bool(forKey: snapsWindowsKey)
+
+    private(set) var snapHotkeys: [SnapPosition: Hotkey] = [:]
+
     private static let cyclesWindowsKey = "cyclesWindows"
+    private static let snapsWindowsKey = "snapsWindows"
+    private static let snapHotkeysKey = "snapHotkeys"
 
     private let fileURL: URL = {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -21,6 +27,7 @@ final class AppStore {
 
     private init() {
         load()
+        loadSnapHotkeys()
     }
 
     // MARK: - Mutations
@@ -76,23 +83,50 @@ final class AppStore {
         }
     }
 
-    /// The entry, if any, already using `hotkey` — other than `entry` itself.
-    func conflict(for hotkey: Hotkey, excluding entry: AppEntry) -> AppEntry? {
-        entries.first { $0.id != entry.id && $0.hotkey == hotkey }
+    func setSnapsWindows(_ enabled: Bool) {
+        snapsWindows = enabled
+        UserDefaults.standard.set(enabled, forKey: Self.snapsWindowsKey)
+        syncHotkeys()
+    }
+
+    func setSnapHotkey(_ hotkey: Hotkey?, for position: SnapPosition) {
+        snapHotkeys[position] = hotkey
+        persistSnapHotkeys()
+        syncHotkeys()
+    }
+
+    /// The name of whatever already uses `hotkey`, other than `owner` itself.
+    func conflict(for hotkey: Hotkey, excluding owner: ShortcutOwner) -> String? {
+        if let entry = entries.first(where: { .app($0.id) != owner && $0.hotkey == hotkey }) {
+            return entry.name
+        }
+
+        let position = SnapPosition.allCases.first { .snap($0) != owner && snapHotkeys[$0] == hotkey }
+        return position?.title
     }
 
     // MARK: - Hotkeys
 
     func syncHotkeys() {
-        HotKeyManager.shared.setHotkeys(
-            entries.compactMap { entry in
-                guard let hotkey = entry.hotkey else {
+        let appHotkeys: [(hotkey: Hotkey, action: () -> Void)] = entries.compactMap { entry in
+            guard let hotkey = entry.hotkey else {
+                return nil
+            }
+
+            return (hotkey: hotkey, action: { Launcher.activate(entry, cyclesWindows: self.cyclesWindows) })
+        }
+
+        let snapHotkeys: [(hotkey: Hotkey, action: () -> Void)] = snapsWindows
+            ? SnapPosition.allCases.compactMap { position in
+                guard let hotkey = self.snapHotkeys[position] else {
                     return nil
                 }
 
-                return (hotkey: hotkey, action: { Launcher.activate(entry, cyclesWindows: self.cyclesWindows) })
+                return (hotkey: hotkey, action: { WindowSnapper.snap(frontmostWindowTo: position) })
             }
-        )
+            : []
+
+        HotKeyManager.shared.setHotkeys(appHotkeys + snapHotkeys)
     }
 
     // MARK: - Ordering
@@ -129,6 +163,26 @@ final class AppStore {
             try encoder.encode(entries).write(to: fileURL, options: .atomic)
         } catch {
             NSLog("Bifrost: could not save entries — \(error.localizedDescription)")
+        }
+    }
+
+    private func persistSnapHotkeys() {
+        do {
+            UserDefaults.standard.set(try JSONEncoder().encode(snapHotkeys), forKey: Self.snapHotkeysKey)
+        } catch {
+            NSLog("Bifrost: could not save snap shortcuts — \(error.localizedDescription)")
+        }
+    }
+
+    private func loadSnapHotkeys() {
+        guard let data = UserDefaults.standard.data(forKey: Self.snapHotkeysKey) else {
+            return
+        }
+
+        do {
+            snapHotkeys = try JSONDecoder().decode([SnapPosition: Hotkey].self, from: data)
+        } catch {
+            NSLog("Bifrost: could not read snap shortcuts — \(error.localizedDescription)")
         }
     }
 
