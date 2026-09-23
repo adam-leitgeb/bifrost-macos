@@ -46,7 +46,7 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
 
       - name: Build
-        run: ./Scripts/build-app.sh
+        run: BIFROST_VERSION="${GITHUB_REF_NAME#v}" ./Scripts/build-app.sh
 
       - name: Notarize and package
         env:

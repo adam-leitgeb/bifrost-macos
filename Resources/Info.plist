@@ -30,5 +30,7 @@
 	<true/>
 	<key>SUFeedURL</key>
 	<string>https://github.com/adam-leitgeb/bifrost-macos/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>TELyM4uTI0iPVoKB2on7eVW6Wb++4vCgeSDGH03eTYw=</string>
 </dict>
 </plist>
