@@ -53,6 +53,7 @@ jobs:
           APP_STORE_CONNECT_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_KEY_CONTENT }}
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
         run: ./Scripts/package-release.sh
 
       - name: Publish release
@@ -61,5 +62,7 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             build/Bifrost.dmg \
+            build/Bifrost.zip \
+            build/appcast.xml \
             --title "$GITHUB_REF_NAME" \
             --generate-notes

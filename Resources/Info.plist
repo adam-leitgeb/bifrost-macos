@@ -26,5 +26,9 @@
 	<true/>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/adam-leitgeb/bifrost-macos/releases/latest/download/appcast.xml</string>
 </dict>
 </plist>

@@ -1,6 +1,6 @@
 # How it works
 
-Bifrost is a SwiftUI `MenuBarExtra` app built on system frameworks only.
+Bifrost is a SwiftUI `MenuBarExtra` app built on system frameworks, plus Sparkle for updates.
 
 | Concern | Approach |
 | --- | --- |
@@ -11,6 +11,23 @@ Bifrost is a SwiftUI `MenuBarExtra` app built on system frameworks only.
 | Activation | `NSRunningApplication.activate()`, preceded by `NSApp.yieldActivation(to:)` for cooperative activation. It is followed by a reopen through `NSWorkspace.openApplication`, the way clicking a Dock icon does, so an app running with no windows opens one. The app decides, since only it knows about its windows on other desktops |
 | Window cycling | Accessibility API — `kAXWindowsAttribute` to enumerate, `kAXRaiseAction` to raise |
 | Storage | JSON at `~/Library/Application Support/Bifrost/entries.json` |
+| Updates | Sparkle, reading `appcast.xml` from the latest GitHub release |
+
+## Updating in place
+
+Sparkle replaces the installed bundle with the new release as it was signed
+and notarized, and never re-signs it. The Accessibility permission is bound to
+the code signature's designated requirement — bundle identifier and Developer
+ID team — so a release signed the same way keeps the permission, and window
+cycling works straight after the update.
+
+An update is checked twice before anything is replaced: its archive against the
+EdDSA public key in `Info.plist`, and the new app's code signature against the
+installed one. The private key is only ever a CI secret.
+
+A scheduled check never opens a window. It records the new version and shows a
+notice in the menu, and Sparkle's install window appears only once the notice
+is clicked.
 
 ## Why Carbon for hotkeys
 
