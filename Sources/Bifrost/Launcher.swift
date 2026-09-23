@@ -53,8 +53,10 @@ enum Launcher {
 
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = true
-        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, error in
-            if error != nil {
+        Task {
+            do {
+                try await NSWorkspace.shared.openApplication(at: url, configuration: configuration)
+            } catch {
                 NSSound.beep()
             }
         }
